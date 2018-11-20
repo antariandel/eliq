@@ -70,8 +70,8 @@ class Mixer:
         remaining_vol = self.liquid_limit - current_total_vol
 
         for row in self.rows:
+            row_max = int((self._float_or_zero(row.ml.get())+remaining_vol) * 10) / 10
             if row != controlling_row:
-                row_max = int((self._float_or_zero(row.ml_scale.get())+remaining_vol) * 10) / 10
                 row.ml_scale.configure(to=row_max)
                 row.ml_remain.set(row_max)
             if remaining_vol < 0.1:
@@ -80,7 +80,7 @@ class Mixer:
                 row.ml_remain.set(row.ml_scale['to'])
             if row.fill_set:
                 row.ml_remain.set('')
-            row.ml_entry.configure(validatecommand=(row.ml_entry_validator, '%d','%P', '%W', 0, mixer._float_or_zero(row.ml_remain.get())))
+            row.ml_entry.configure(validatecommand=(row.ml_entry_validator, '%d','%P', '%W', 0, row_max))
         
         if [row for row in self.rows if row.fill_set]:
             self.liquid_volume.set('Total: %.1f ml' % self.liquid_limit)
