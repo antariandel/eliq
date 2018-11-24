@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
 import sys
-import re
 import random
-import math
+
 import tkinter as tk
 from tkinter import ttk
 
-sys.path.append('..') # TODO: Remove this as fludo becomes a package
+# TODO: Remove this as fludo becomes a package
+sys.path.append('..')
+
 import fludo
 
 
@@ -18,7 +19,7 @@ def _float_or_zero(value):
             return 0
 
 
-class Component:
+class MixerIngredient:
     def __init__(self, mixer, liquid):
         self.mixer = mixer
         self.liquid = liquid
@@ -39,7 +40,7 @@ class Component:
         # Linked to self.ml and the volume validation method.
         # Validation: http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/entry-validation.html
 
-        self.ml_entry = ttk.Entry(self.mixer.frame, width=6, textvariable=self.ml)
+        self.ml_entry = ttk.Entry(self.mixer.frame, width=7, textvariable=self.ml)
         self.ml_entry_validator = self.ml_entry.register(self._validate_ml_entry)
 
         # --- Volume (ml) Scale ---
@@ -61,11 +62,11 @@ class Component:
         self.fill_label = ttk.Label(self.mixer.frame, text='Will fill remaining.')
 
         # --- Fill Select Button ---
-        self.fill_button = ttk.Button(self.mixer.frame, text='', width=3, command=lambda:
+        self.fill_button = ttk.Button(self.mixer.frame, text='⚪', width=3, command=lambda:
             self.mixer.toggle_fill(self))
         
         # --- Destroy Button ---
-        self.destroy_button = ttk.Button(self.mixer.frame, text='-', width=3, command=lambda:
+        self.destroy_button = ttk.Button(self.mixer.frame, text='⛝', width=3, command=lambda:
             self.mixer.destroy_row(self))
 
         # --- Widget Placements ---
@@ -75,13 +76,13 @@ class Component:
         self.ml_scale.grid(
             row=row_idx, column=1)
         self.ml_remain_label.grid(
-            row=row_idx, column=2, padx=5)
+            row=row_idx, column=2, padx=17)
         self.fill_button.grid(
-            row=row_idx, column=3, padx=5)
+            row=row_idx, column=3, padx=1)
         self.ml_entry.grid(
             row=row_idx, column=4, padx=5)
         self.destroy_button.grid(
-            row=row_idx, column=5, padx=5)
+            row=row_idx, column=5, padx=14)
         
         self.fill_set = False
         self.mixer._initialize_new_row(self)
@@ -133,7 +134,7 @@ class Component:
             # not set
             pass
         self.mixer.update(self)
-        self.fill_button.configure(text='')
+        self.fill_button.configure(text='⚪')
         self.fill_set = False
 
     def _set_fill(self):
@@ -142,62 +143,229 @@ class Component:
         self.ml_entry.configure(state='readonly')
         self._fill_traceid = self.ml_remain.trace('w', lambda var, idx, op:
             self.ml.set(
-                int( (mixer.liquid_limit - sum([_float_or_zero(row.ml.get()) for row in mixer.rows if row != self])) * 10 ) / 10
+                int( (self.mixer.liquid_limit - sum([_float_or_zero(row.ml.get()) \
+                    for row in self.mixer.rows if row != self])) * 10 ) / 10
             ))
         self.mixer.update(self)
-        self.fill_button.configure(text='Fill')
+        self.fill_button.configure(text='⚫')
         self.fill_set = True
     
     def set_liquid(self, liquid):
         self.liquid = liquid
 
 
+class NewIngredientToplevel:
+    def __init__(self, root, ingredients_parent):
+        self.toplevel = tk.Toplevel(root)
+        self.toplevel.title('Fludo | New Ingredient')
+        self.toplevel.resizable(False, False)
+        self.toplevel.bind('<Return>', self.create_and_close)
+
+        self.ingredients_parent = ingredients_parent
+
+        self.frame = ttk.Frame(self.toplevel)
+        self.frame.grid(padx=10, pady=10)
+
+        self.name = tk.StringVar()
+        self.name.set('Unnamed Ingredient')
+        self.pg = tk.StringVar()
+        self.pg.set('0')
+        self.vg = tk.StringVar()
+        self.vg.set('0')
+        self.nic = tk.StringVar()
+        self.nic.set('0')
+
+        self.entry_validator = self.frame.register(self._validate_entry)
+
+        self.name_label = ttk.Label(self.frame, text='Ingredient Name:')
+        self.name_entry = ttk.Entry(self.frame, name='name_entry_%s' % id(self), width=30,
+            textvariable=self.name,
+            validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
+        
+        self.pg_label = ttk.Label(self.frame, text='PG (% vol.):')
+        self.pg_entry = ttk.Entry(self.frame, name='pg_entry_%s' % id(self), width=30,
+            textvariable=self.pg,
+            validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
+        
+        self.vg_label = ttk.Label(self.frame, text='VG (% vol.):')
+        self.vg_entry = ttk.Entry(self.frame, name='vg_entry_%s' % id(self), width=30,
+            textvariable=self.vg,
+            validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
+        
+        self.nic_label = ttk.Label(self.frame, text='Nicotine (mg/ml):')
+        self.nic_entry = ttk.Entry(self.frame, name='nic_entry_%s' % id(self), width=30,
+            textvariable=self.nic,
+            validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
+
+        self.lb_hint = ttk.Label(self.frame,
+            text='''Give your ingredient a name, PG, VG and Nicotine
+concentration. If PG and VG don't add up to 100%,
+the rest is considered water. Use 0PG/0VG to add
+pure water. Use 0 nic. mg/ml for nic-free bases
+and aromas. You can turn this hint off in the
+settings.\n''')
+        # TODO: Make setting to turn this off
+
+        button_frame = ttk.Frame(self.frame)
+        button_frame.grid(row=5, column=0, columnspan=2)
+        self.btn_create = ttk.Button(button_frame, text='Add Ingredient', width=20,
+            command=self.create_and_close)
+        self.btn_close = ttk.Button(button_frame, text='Cancel', width=20,
+            command=self.close)
+
+        self.name_label.grid(
+            row=0, column=0, sticky=tk.E, padx=5, pady=5)
+        self.pg_label.grid(
+            row=1, column=0, sticky=tk.E, padx=5, pady=5)
+        self.vg_label.grid(
+            row=2, column=0, sticky=tk.E, padx=5, pady=5)
+        self.nic_label.grid(
+            row=3, column=0, sticky=tk.E, padx=5, pady=5)
+        
+        self.name_entry.grid(
+            row=0, column=1, sticky=tk.E)
+        self.pg_entry.grid(
+            row=1, column=1, sticky=tk.E)
+        self.vg_entry.grid(
+            row=2, column=1, sticky=tk.E)
+        self.nic_entry.grid(
+            row=3, column=1, sticky=tk.E)
+        
+        self.lb_hint.grid(row=4, column=0, columnspan=2, sticky=tk.N, pady=10)
+
+        self.btn_create.grid(row=5, column=0, padx=16, sticky=tk.W+tk.E)
+        self.btn_close.grid(row=5, column=1, padx=16, sticky=tk.W+tk.E)
+    
+    def _validate_entry(self, action, value, widget_name):
+        if 'name_entry' in widget_name:
+            if action == '-1': # focus change
+                if not value:
+                    self.name.set('Unnamed Ingredient')
+                elif self.name.get() == 'Unnamed Ingredient':
+                    self.name.set('')
+            if len(value) < 240:
+                return True
+            else:
+                return False
+        
+        if 'pg_entry' in widget_name:
+            if (_float_or_zero(value) + _float_or_zero(self.vg.get())) > 100 or \
+               _float_or_zero(value) < 0:
+                return False
+            
+            if action == '-1': #focus change
+                if not value:
+                    self.pg.set(0)
+        
+        if 'vg_entry' in widget_name:
+            if (_float_or_zero(value) + _float_or_zero(self.pg.get())) > 100 or \
+               _float_or_zero(value) < 0:
+                return False
+            
+            if action == '-1': #focus change
+                if not value:
+                    self.vg.set(0)
+
+        if 'pg_entry' in widget_name or 'vg_entry' in widget_name:
+            if value:
+                try:
+                    float(value)
+                    return True
+                except (TypeError, ValueError):
+                    return False
+            else:
+                return True # allow empty string
+        
+        if 'nic_entry' in widget_name:
+            if action == '-1': #focus change
+                if not value:
+                    self.nic.set(0)
+            
+            if value:
+                try:
+                    float(value)
+                    if float(value) < 0:
+                        return False
+                    else:
+                        return True
+                except (TypeError, ValueError):
+                    return False
+            else:
+                return True # allow empty string
+    
+    def create_and_close(self, event=None):
+        self.ingredients_parent.add_ingredient(fludo.Liquid(
+            name=self.name.get(),
+            pg=_float_or_zero(self.pg.get()),
+            vg=_float_or_zero(self.vg.get()),
+            nic=_float_or_zero(self.nic.get())
+        ))
+
+        self.toplevel.withdraw()
+    
+    def close(self):
+        self.toplevel.withdraw()
+
+
 class MixerToplevel:
     def __init__(self, root):
         self.toplevel = tk.Toplevel(root)
         self.toplevel.title('Fludo | Liquid Mixer')
+        self.toplevel.resizable(False, False)
 
         self.frame = ttk.Frame(self.toplevel)
+        self.frame.grid(row=0, column=0, sticky=tk.W+tk.E+tk.N+tk.S)
+        self.frame.grid_rowconfigure(0, minsize=32)
         self.frame.grid_columnconfigure(1, minsize=200)
         self.frame.grid_columnconfigure(0, minsize=250)
 
-        self.lb_max = ttk.Label(self.frame, text='Max. (ml)')
+        self.labels_frame = ttk.Frame(self.frame)
+
+        self.lb_max = ttk.Label(self.labels_frame, text='Max. (ml)')
         self.lb_max.grid(row=0, column=2, padx=5)
 
-        self.lb_fill = ttk.Label(self.frame, text='Fill')
+        self.lb_fill = ttk.Label(self.labels_frame, text='Fill')
         self.lb_fill.grid(row=0, column=3, padx=5)
 
-        self.lb_ml = ttk.Label(self.frame, text='Vol. (ml)')
+        self.lb_ml = ttk.Label(self.labels_frame, text='Vol. (ml)')
         self.lb_ml.grid(row=0, column=4, padx=5)
 
-        self.status_bar = ttk.Frame(self.frame)
-        self.status_bar.grid(row=999, columnspan=5)
+        self.lb_destroy = ttk.Label(self.labels_frame, text='Remove')
+        self.lb_destroy.grid(row=0, column=5, padx=5)
+
+        self.status_bar = ttk.Frame(self.frame, borderwidth=1, relief=tk.GROOVE)
+        self.frame.grid_rowconfigure(999, minsize=32)
+        self.status_bar.grid(row=999, columnspan=6, sticky=tk.W+tk.E+tk.S)
         
         self.liquid_volume = tk.StringVar()
-        self.liquid_volume.set('Total: 0.0 ml')
-        self.lb_total = ttk.Label(self.frame, textvariable=self.liquid_volume)
-        self.lb_total.grid(row=999, column=2, columnspan=3, padx=5, sticky=tk.E)
+        self.lb_total = ttk.Label(self.status_bar, textvariable=self.liquid_volume)
+        self.lb_total.grid(row=0, column=1, pady=2, sticky=tk.W)
 
         self.mixture_description = tk.StringVar()
-        self.lb_mixture_description = ttk.Label(self.frame, textvariable=self.mixture_description)
-        self.lb_mixture_description.grid(row=999, column=0, sticky=tk.W)
+        self.lb_mixture_description = ttk.Label(self.status_bar,
+            textvariable=self.mixture_description)
+        self.lb_mixture_description.grid(row=0, column=0, pady=2, sticky=tk.W)
 
-        self.bt_add = ttk.Button(self.frame, width=3, text='+', command=self.add_row)
-        self.bt_add.grid(row=0, column=5)
+        self.bt_add = ttk.Button(self.frame, text='Add Ingredient', width=20,
+            command=self.add_ingredient_toplevel)
+        self.bt_add.grid(row=998, column=0, columnspan=6)
 
         self.liquid_limit = 100 # Default to 100ml
         self.rows = []
         self.fill_set = False
+        self.new_ingredient_toplevel = NewIngredientToplevel(self.toplevel, self)
+        self.new_ingredient_toplevel.toplevel.withdraw()
+        self.labels_shown = False
     
     def _initialize_new_row(self, calling_row):
-        # Called by the row from its __init__ so that a new row can be added both
-        # by Mixer.add_row(...) or just Component(mixer_instance, ...)
+        # Called by the row from its __init__
         self.rows.append(calling_row)
         self.frame.grid_rowconfigure(self.get_row_idx(calling_row), minsize=30)
         current_total_vol = sum([_float_or_zero(row.ml.get()) for row in self.rows])
         remaining_vol = self.liquid_limit - current_total_vol
         calling_row.ml_scale.configure(to=remaining_vol)
         calling_row.ml_remain.set(remaining_vol)
+        self.update()
 
     def set_liquid_limit(self, ml):
         '''Updates the container size.'''
@@ -217,7 +385,8 @@ class MixerToplevel:
         return fludo.Mixture(*[row.liquid for row in self.rows])
 
     def update(self, skip_limiting_row=None):
-        current_total_vol = sum([_float_or_zero(row.ml.get()) for row in self.rows if not row.fill_set])
+        current_total_vol = sum([_float_or_zero(row.ml.get()) \
+            for row in self.rows if not row.fill_set])
         remaining_vol = self.liquid_limit - current_total_vol
 
         for row in self.rows:
@@ -235,21 +404,24 @@ class MixerToplevel:
             row.liquid.update_ml(_float_or_zero(row.ml.get()))
         
         if self.fill_set:
-            self.liquid_volume.set('Volume: %(limit).1f ml / %(limit).1f ml' % {'limit': self.liquid_limit})
+            self.liquid_volume.set('Volume: %(limit).1f ml / %(limit).1f ml.' % {
+                'limit': self.liquid_limit})
         else:
-            self.liquid_volume.set('Volume: %(vol).1f ml / %(limit).1f ml' % {
+            self.liquid_volume.set('Volume: %(vol).1f ml / %(limit).1f ml.' % {
                 'vol': sum([_float_or_zero(row.ml.get()) for row in self.rows]),
                 'limit': self.liquid_limit })
         
         mixture = self.get_mixture()
-        self.mixture_description.set('Mixture: %dPG / %dVG, nic. %.1f mg/ml' % (
+        self.mixture_description.set('Mixture: %dPG / %dVG, nic. %.1f mg/ml.' % (
             mixture.pg, mixture.vg, mixture.nic))
     
-    def add_row(self):
-        # TODO: Create add window
-        liquid = fludo.Liquid(name='Liquid %s' % random.randint(100, 999))
-        Component(self, liquid)
-        self.update()
+    def add_ingredient_toplevel(self):
+        self.new_ingredient_toplevel.toplevel.deiconify()
+    
+    def add_ingredient(self, liquid):
+        if not self.labels_shown:
+            self.labels_frame.grid(row=0, column=0, columnspan=6, sticky=tk.E)
+        MixerIngredient(self, liquid)
     
     def destroy_row(self, row_instance):
         row_idx = self.get_row_idx(row_instance)
@@ -267,10 +439,13 @@ class MixerToplevel:
                 pass
         self.rows.remove(row_instance)
         self.frame.grid_rowconfigure(row_idx, minsize=0)
-        del(row_instance)
         self.update()
 
-        #TODO: Create grid row recycle
+        if self.get_last_row_idx() == 1:
+            self.labels_frame.grid_forget()
+            self.labels_shown = False
+
+        # TODO: Grid row recycle, so we don't count up
     
     def get_last_row_idx(self):
         last_row = 1
@@ -301,12 +476,10 @@ class MixerToplevel:
 tk_root = tk.Tk()
 tk_root.title('Fludo')
 
+# TODO: Create main window with recipe list
+
 mixer = MixerToplevel(tk_root)
 
-Component(mixer, fludo.Liquid(name='Base', pg=50))
-Component(mixer, fludo.Liquid(name='NicBase', pg=50, nic=20))
-Component(mixer, fludo.Liquid(name='Aroma: AG Grapes', pg=50))
-
-mixer.frame.grid(padx=10, pady=10)
+mixer.update()
 
 tk_root.mainloop()
