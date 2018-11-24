@@ -316,8 +316,9 @@ class MixerToplevel:
         self.frame = ttk.Frame(self.toplevel)
         self.frame.grid(row=0, column=0, sticky=tk.W+tk.E+tk.N+tk.S)
         self.frame.grid_rowconfigure(0, minsize=32)
-        self.frame.grid_columnconfigure(1, minsize=200)
         self.frame.grid_columnconfigure(0, minsize=250)
+        self.frame.grid_columnconfigure(1, minsize=200)
+        self.frame.grid_columnconfigure(2, minsize=60)
 
         self.labels_frame = ttk.Frame(self.frame)
 
@@ -480,6 +481,7 @@ tk_root.title('Fludo')
 
 mixer = MixerToplevel(tk_root)
 
+mixer.set_liquid_limit(30)
 mixer.update()
 
 tk_root.mainloop()
