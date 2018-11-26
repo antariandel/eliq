@@ -7,7 +7,7 @@ from tkinter import ttk
 from tkinter import messagebox, simpledialog
 
 # TODO: Remove this as fludo becomes a package
-sys.path.append('..')
+sys.path.append('../fludo')
 
 import fludo
 
@@ -20,13 +20,8 @@ def float_or_zero(value):
 
 
 def center(toplevel):
-    # Source: https://stackoverflow.com/questions/3352918/how-to-center-a-window-on-the-screen-in-tkinter/10018670#10018670
-    toplevel.update_idletasks()
-    width = toplevel.winfo_width()
-    height = toplevel.winfo_height()
-    x = (toplevel.winfo_screenwidth() // 2) - (width // 2)
-    y = (toplevel.winfo_screenheight() // 2) - (height // 2)
-    toplevel.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+    # TODO: Make tk_root an attribute rather than reference to global
+    tk_root.eval('tk::PlaceWindow %s center' % toplevel.winfo_toplevel())
 
 
 class CreateToolTip(object):
@@ -274,18 +269,18 @@ class YesNoToplevel:
         self.callback = callback
 
         self.frame = ttk.Frame(self.toplevel)
-        self.frame.grid(padx=10, pady=10)
+        self.frame.grid(padx=20, pady=5)
 
         self.label = ttk.Label(self.frame, text=text)
-        self.label.grid(row=0, column=0, columnspan=2)
+        self.label.grid(row=0, column=0, columnspan=2, pady=10)
 
         self.yes_button = ttk.Button(self.frame, text='Yes', width=10,
             command=lambda: self.close(True))
-        self.yes_button.grid(row=1, column=0, pady=5)
+        self.yes_button.grid(row=1, column=0, pady=10)
         
         self.no_button = ttk.Button(self.frame, text='No', width=10,
             command=lambda: self.close(False))
-        self.no_button.grid(row=1, column=1, pady=5)
+        self.no_button.grid(row=1, column=1, pady=10)
 
         self.destroy_on_close = destroy_on_close
 
@@ -313,10 +308,10 @@ class FloatEntryToplevel:
         self.callback = callback
 
         self.frame = ttk.Frame(self.toplevel)
-        self.frame.grid(padx=10, pady=10)
+        self.frame.grid(padx=20, pady=5)
 
         self.label = ttk.Label(self.frame, text=text)
-        self.label.grid(row=0, column=0, columnspan=2)
+        self.label.grid(row=0, column=0, columnspan=2, pady=10)
 
         self.entry_value = tk.StringVar()
         self.entry_value.set(default_value)
@@ -324,16 +319,16 @@ class FloatEntryToplevel:
         self.entry_validator = self.entry.register(self._validate_entry)
         self.entry.configure(
             validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
-        self.entry.grid(row=1, columnspan=2, pady=5)
+        self.entry.grid(row=1, columnspan=2, pady=10)
         self.entry.focus()
 
         self.yes_button = ttk.Button(self.frame, text='OK', width=10,
             command=lambda: self.close(True))
-        self.yes_button.grid(row=2, column=0, pady=5)
+        self.yes_button.grid(row=2, column=0, pady=10)
         
         self.no_button = ttk.Button(self.frame, text='Cancel', width=10,
             command=lambda: self.close(False))
-        self.no_button.grid(row=2, column=1, pady=5)
+        self.no_button.grid(row=2, column=1, pady=10)
 
         self.destroy_on_close = destroy_on_close
         self.min_value = min_value
@@ -515,7 +510,7 @@ the settings.\n''')
     
     def create_and_close(self):
         self.callback(fludo.Liquid(
-            name=self.name.get(),
+            name='Unnamed Ingredient' if not self.name.get() else self.name.get(),
             pg=float_or_zero(self.pg.get()),
             vg=float_or_zero(self.vg.get()),
             nic=float_or_zero(self.nic.get())
@@ -541,8 +536,8 @@ class MixerToplevel:
         self.frame.grid_columnconfigure(2, minsize=60)
 
         self.labels_frame = ttk.Frame(self.frame)
-        self.labels_frame.grid_columnconfigure(5, minsize=56)
-        self.labels_frame.grid_columnconfigure(3, minsize=35)
+        self.labels_frame.grid_columnconfigure(5, minsize=40)
+        self.labels_frame.grid_columnconfigure(3, minsize=33)
 
         self.lb_max = ttk.Label(self.labels_frame, text='Max. (ml)')
         self.lb_max.grid(row=0, column=2, padx=5)
@@ -567,15 +562,15 @@ class MixerToplevel:
         self.lb_start.grid(row=997, column=0, columnspan=6)
 
         self.button_frame = ttk.Frame(self.frame)
-        self.button_frame.grid(row=998, columnspan=6)
+        self.button_frame.grid(row=998, columnspan=6, pady=10)
 
         self.bt_add = ttk.Button(self.button_frame, text='Add Ingredient', width=20,
             command=self.show_add_ingredient_toplevel)
-        self.bt_add.grid(row=998, column=0, pady=5, padx=5)
+        self.bt_add.grid(row=998, column=0, padx=5)
 
         self.bt_change_container = ttk.Button(self.button_frame, text='Change Container Size', width=20,
             command=self.show_change_container_dialog)
-        self.bt_change_container.grid(row=998, column=1, pady=5, padx=5)
+        self.bt_change_container.grid(row=998, column=1, padx=5)
 
         self.liquid_limit = 100 # Default to 100ml
         self.rows = []
@@ -586,6 +581,9 @@ class MixerToplevel:
         self.fill_set = False
         self.labels_shown = False
         self.ask_remove = True
+
+        center(self.toplevel)
+        self.toplevel.lift()
     
     def _initialize_new_row(self, calling_row):
         # Called by the row from its __init__
@@ -621,8 +619,10 @@ Minimum size is 10 ml, max. is 10,000 ml.''',
         self.update()
     
     def get_mixture(self):
-        if self.rows:
+        if len(self.rows) > 1:
             return fludo.Mixture(*[row.liquid for row in self.rows])
+        elif len(self.rows) == 1:
+            return self.rows[0].liquid
         else:
             return fludo.Liquid(ml=0, pg=0, vg=0, nic=0)
 
@@ -727,8 +727,5 @@ tk_root.title('Fludo')
 # TODO: Create main window with recipe list
 
 mixer = MixerToplevel(tk_root)
-
-mixer.set_liquid_limit(30)
-mixer.update()
 
 tk_root.mainloop()
