@@ -1,27 +1,20 @@
 #!/usr/bin/env python
 
-import sys
-
 import tkinter as tk
 from tkinter import ttk
-from tkinter import messagebox, simpledialog
-
-# TODO: Remove this as fludo becomes a package
-sys.path.append('../fludo')
 
 import fludo
 
 
 def float_or_zero(value):
-        try:
-            return float(value)
-        except ValueError:
-            return float(0)
+    try:
+        return float(value)
+    except ValueError:
+        return float(0)
 
 
 def center(toplevel):
-    # TODO: Make tk_root an attribute rather than reference to global
-    tk_root.eval('tk::PlaceWindow %s center' % toplevel.winfo_toplevel())
+    toplevel.nametowidget('.').eval('tk::PlaceWindow %s center' % toplevel.winfo_toplevel())
 
 
 class CreateToolTip(object):
@@ -164,6 +157,22 @@ class MixerIngredient:
         
         self.fill_set = False
         self.mixer._initialize_new_row(self)
+
+        self.editor_toplevel = NewIngredientToplevel(self.mixer.toplevel, self.set_liquid,
+            window_title='Edit Ingredient', button_text='OK', liquid=self.liquid, destroy_on_close=False)
+        self.editor_toplevel.toplevel.withdraw()
+
+        self.remover_toplevel = YesNoToplevel(self.mixer.toplevel,
+            callback=lambda yes_clicked: self.mixer.destroy_row(self if yes_clicked else None),
+            window_title='Remove Ingredient',
+            text='''Are you sure you wish to remove
+%(name)s, %(pg)dPG/%(vg)dVG, nic. %(nic).1f mg/ml?''' % {
+                'name': self.liquid.name,
+                'pg': self.liquid.pg,
+                'vg': self.liquid.vg,
+                'nic': self.liquid.nic },
+            destroy_on_close=False)
+        self.remover_toplevel.toplevel.withdraw()
     
     def _update_var_from_scale(self, scale, variable, digits=1):
         value = int(float(scale.get()) * pow(10, digits)) / pow(10, digits)
@@ -229,22 +238,20 @@ class MixerIngredient:
         self.fill_set = True
 
     def show_editor_toplevel(self):
-        # FIXME: Create editor instance (like add ingredient instance for mixertoplevel)
-        NewIngredientToplevel(self.mixer.toplevel, self.set_liquid,
-            window_title='Edit Ingredient', button_text='OK', liquid=self.liquid)
+        self.editor_toplevel.set_liquid(self.liquid)
+        self.editor_toplevel.name_entry.focus()
+        self.editor_toplevel.toplevel.deiconify()
     
     def show_remove_dialog(self):
-         # FIXME: Create remover instance (like add ingredient instance for mixertoplevel)
         if self.mixer.ask_remove:
-            YesNoToplevel(self.mixer.toplevel,
-                callback=lambda yes_clicked: self.mixer.destroy_row(self if yes_clicked else None),
-                window_title='Remove Ingredient',
-                text='''Are you sure you wish to remove
+            self.remover_toplevel.label.configure(text='''Are you sure you wish to remove
 %(name)s, %(pg)dPG/%(vg)dVG, nic. %(nic).1f mg/ml?''' % {
-                    'name': self.liquid.name,
-                    'pg': self.liquid.pg,
-                    'vg': self.liquid.vg,
-                    'nic': self.liquid.nic })
+                'name': self.liquid.name,
+                'pg': self.liquid.pg,
+                'vg': self.liquid.vg,
+                'nic': self.liquid.nic })
+            self.remover_toplevel.yes_button.focus()
+            self.remover_toplevel.toplevel.deiconify()
 
     def set_liquid(self, liquid):
         self.liquid = liquid
@@ -366,7 +373,7 @@ class FloatEntryToplevel:
 
 class NewIngredientToplevel:
     def __init__(self, root, callback, window_title='New Ingredient',
-        button_text='Add Ingredient', liquid=None):
+        button_text='Add Ingredient', liquid=None, destroy_on_close=True):
         self.toplevel = tk.Toplevel(root)
         self.toplevel.title('Fludo | %s' % window_title)
         self.toplevel.resizable(False, False)
@@ -374,6 +381,7 @@ class NewIngredientToplevel:
         self.toplevel.protocol("WM_DELETE_WINDOW", self.close)
 
         self.callback = callback
+        self.destroy_on_close = destroy_on_close
 
         self.frame = ttk.Frame(self.toplevel)
         self.frame.grid(padx=10, pady=10)
@@ -508,6 +516,12 @@ the settings.\n''')
             else:
                 return True # allow empty string
     
+    def set_liquid(self, liquid):
+        self.name.set(liquid.name)
+        self.pg.set(liquid.pg)
+        self.vg.set(liquid.vg)
+        self.nic.set(liquid.nic)
+    
     def create_and_close(self):
         self.callback(fludo.Liquid(
             name='Unnamed Ingredient' if not self.name.get() else self.name.get(),
@@ -516,10 +530,13 @@ the settings.\n''')
             nic=float_or_zero(self.nic.get())
         ))
 
-        self.toplevel.withdraw()
+        self.close()
     
     def close(self):
-        self.toplevel.withdraw()
+        if self.destroy_on_close:
+            self.toplevel.destroy()
+        else:
+            self.toplevel.withdraw()
 
 
 class MixerToplevel:
@@ -566,6 +583,7 @@ class MixerToplevel:
 
         self.bt_add = ttk.Button(self.button_frame, text='Add Ingredient', width=20,
             command=self.show_add_ingredient_toplevel)
+        self.toplevel.bind('<Control-Key-a>', lambda event: self.show_add_ingredient_toplevel()) # Ctrl+A
         self.bt_add.grid(row=998, column=0, padx=5)
 
         self.bt_change_container = ttk.Button(self.button_frame, text='Change Container Size', width=20,
@@ -574,9 +592,20 @@ class MixerToplevel:
 
         self.liquid_limit = 100 # Default to 100ml
         self.rows = []
+
         self.new_ingredient_toplevel = NewIngredientToplevel(self.toplevel, self.add_ingredient,
-            window_title='Add Ingredient')
+            window_title='Add Ingredient', destroy_on_close=False)
         self.new_ingredient_toplevel.toplevel.withdraw()
+
+        self.change_container_toplevel = FloatEntryToplevel(self.toplevel,
+            window_title='Change Container Size',
+            text='''Enter new size in milliliters below.
+Minimum size is 10 ml, max. is 10,000 ml.''',
+            min_value=10, max_value=10000,
+            default_value=self.liquid_limit,
+            callback=self.set_liquid_limit,
+            destroy_on_close=False)
+        self.change_container_toplevel.toplevel.withdraw()
 
         self.fill_set = False
         self.labels_shown = False
@@ -596,13 +625,8 @@ class MixerToplevel:
         self.update()
     
     def show_change_container_dialog(self):
-        FloatEntryToplevel(self.toplevel,
-            window_title='Change Container Size',
-            text='''Enter new size in milliliters below.
-Minimum size is 10 ml, max. is 10,000 ml.''',
-            min_value=10, max_value=10000,
-            default_value=self.liquid_limit,
-            callback=self.set_liquid_limit)
+        self.change_container_toplevel.toplevel.deiconify()
+        self.change_container_toplevel.entry.focus()
 
     def set_liquid_limit(self, ml):
         '''Updates the container size.'''
@@ -659,6 +683,10 @@ Minimum size is 10 ml, max. is 10,000 ml.''',
     
     def show_add_ingredient_toplevel(self):
         self.new_ingredient_toplevel.toplevel.deiconify()
+        self.new_ingredient_toplevel.name.set('Unnamed Ingredient')
+        self.new_ingredient_toplevel.pg.set(0)
+        self.new_ingredient_toplevel.vg.set(0)
+        self.new_ingredient_toplevel.nic.set(0)
         self.new_ingredient_toplevel.name_entry.focus()
     
     def add_ingredient(self, liquid):
@@ -720,12 +748,12 @@ Minimum size is 10 ml, max. is 10,000 ml.''',
             
         self.update(skip_limiting_row=row_instance)
 
+if __name__ == '__main__':
+    tk_root = tk.Tk()
+    tk_root.title('Fludo')
 
-tk_root = tk.Tk()
-tk_root.title('Fludo')
+    # TODO: Create main window with recipe list
 
-# TODO: Create main window with recipe list
+    mixer = MixerToplevel(tk_root)
 
-mixer = MixerToplevel(tk_root)
-
-tk_root.mainloop()
+    tk_root.mainloop()
