@@ -466,7 +466,7 @@ the settings.\n''')
                     self.name.set('Unnamed Ingredient')
                 elif self.name.get() == 'Unnamed Ingredient':
                     self.name.set('')
-            if len(value) < 240:
+            if len(value) < 100:
                 return True
             else:
                 return False
