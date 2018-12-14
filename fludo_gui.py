@@ -5,7 +5,7 @@ import sqlite3
 
 import tkinter as tk
 
-from fludo import Base, NicBase, Aroma, Liquid
+from fludo import Liquid
 
 from mixer import MixerToplevel
 
