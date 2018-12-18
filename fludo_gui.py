@@ -7,13 +7,17 @@ import tkinter as tk
 
 from fludo import Liquid
 
-from mixer import MixerToplevel
+from mixer import Mixer, MixerIngredientController
 
-ingredients = [
-    Liquid(ml=42.5, name='Base', pg=50, vg=50),
-    Liquid(ml=2.5, name='NicBase', nic=20, pg=50, vg=50),
-    Liquid(ml=5, name='Banana', pg=100, vg=0)
-]
+ingredients = {
+    'ingredients': [
+        Liquid(ml=42.5, name='Base', pg=50, vg=50),
+        Liquid(ml=2.5, name='NicBase', nic=20, pg=50, vg=50),
+        Liquid(ml=5, name='Aroma', pg=100, vg=0)
+    ],
+    'filler_idx': 0,
+    'container_vol': 50
+}
 
 
 if __name__ == '__main__':
@@ -22,7 +26,7 @@ if __name__ == '__main__':
 
     # TODO Create main window with recipe list
 
-    mixer = MixerToplevel(tk_root)
-    mixer.load_mixture(ingredients, 50, fill_toggled_row_index=0)
+    mixer = Mixer(tk_root)
+    mixer.load_ingredients(ingredients)
 
     tk_root.mainloop()
