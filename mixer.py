@@ -11,8 +11,19 @@ import fludo
 from common import (float_or_zero, center_toplevel, CreateToolTip, YesNoDialog, FloatEntryDialog,
     FloatValidator, BaseDialog)
 
+import const
+
+const.CONTAINER_MIN = 10
+const.CONTAINER_MAX = 10000
+const.MAX_INGREDIENTS = 10
+# TODO Limit the max number of ingredients allowed when adding
+
 
 class NewIngredientDialog(BaseDialog):
+    '''
+    With this dialog the user can define a liquid. It will pass a fludo.Liquid to the callback.
+    '''
+
     def configure_widgets(self, **kwargs):
         self.name = tk.StringVar()
         self.name.set('Unnamed Ingredient' if not 'liquid' in kwargs else kwargs['liquid'].name)
@@ -86,6 +97,8 @@ class NewIngredientDialog(BaseDialog):
         center_toplevel(self.toplevel)
     
     def _validate_entries(self, action, value, widget_name):
+        ''' Validator for all entry fields. '''
+
         if 'name_entry' in widget_name:
             if action == '-1': # focus change
                 if not value:
@@ -144,12 +157,15 @@ class NewIngredientDialog(BaseDialog):
     
     def set_liquid(self, liquid: fludo.Liquid):
         ''' Loads liquid properties into the dialog, for example if opened for editing. '''
+
         self.name.set(liquid.name)
         self.pg.set(liquid.pg)
         self.vg.set(liquid.vg)
         self.nic.set(liquid.nic)
     
     def close(self, ok_clicked, **kwargs):
+        ''' Close and return the fludo.Liquid if ok_button is clicked. Otherwise just close. '''
+
         if ok_clicked:
             self.callback(fludo.Liquid(
                 name='Unnamed Ingredient' if not self.name.get() else self.name.get(),
@@ -166,6 +182,7 @@ class Mixer:
     This is the main class of Mixer. It creates the Liquid Mixer toplevel window and manages its
     MixerIngredientController objects (the ingredients of the mixture).
     '''
+
     def __init__(self, parent: tk.Widget):
         self.parent = parent
 
@@ -222,7 +239,6 @@ class Mixer:
         self.change_container_button.grid(row=998, column=1, padx=5)
 
         self.fill_set = False
-        self.ask_remove = True
 
         self._labels_shown = False
         self._ingredient_list = []
@@ -242,7 +258,7 @@ class Mixer:
                 window_title='Change Container Size',
                 text=('Enter new size in milliliters below.\n'
                       'Minimum size is 10 ml, max. is 10,000 ml.'),
-                min_value=10, max_value=10000,
+                min_value=const.CONTAINER_MIN, max_value=const.CONTAINER_MAX,
                 default_value=self._container_vol,
                 callback=self.set_container_volume,
                 destroy_on_close=False)
@@ -251,29 +267,37 @@ class Mixer:
 
     def set_container_volume(self, ml: Union[int, float]) -> None:
         ''' Updates the container volume (size). '''
+
+        if ml > const.CONTAINER_MAX:
+            raise Exception('Parameter ml larger than maximum allowed!')
+        if ml < const.CONTAINER_MIN:
+            raise Exception('Parameter ml smaller than minimum allowed!')
         
         ratio = ml / self._container_vol
         self._container_vol = ml
 
-        for row in self._ingredient_list:
-            new_value = float_or_zero(row.ml.get()) * ratio
-            row.ml_scale.configure(to=new_value+1) # dummy scale limit change
-            row.ml_scale.set(new_value) # so that we can update it
+        # Recalc every ingredients volume to preserve ratio.
+        for ingredient in self._ingredient_list:
+            new_value = float_or_zero(ingredient.ml.get()) * ratio
+            ingredient.ml_scale.configure(to=new_value+1) # dummy scale limit change
+            ingredient.ml_scale.set(new_value) # so that we can update it
         
         self.update()
     
     def get_container_volume(self) -> Union[int, float]:
         ''' Returns the current volume (size) of the container in milliliters. '''
+
         try:
             return self._container_vol
         except AttributeError:
             self._container_vol = 10
             return 10
     
-    def get_mixture(self) -> fludo.Liquid:
+    def get_mixture(self) -> Union[fludo.Liquid, fludo.Mixture]:
         ''' Returns a fludo.Liquid that results from mixing every ingredient. '''
+
         if len(self._ingredient_list) > 1:
-            return fludo.Mixture(*[row.liquid for row in self._ingredient_list])
+            return fludo.Mixture(*[ingredient.liquid for ingredient in self._ingredient_list])
         elif len(self._ingredient_list) == 1:
             return self._ingredient_list[0].liquid
         else:
@@ -287,8 +311,9 @@ class Mixer:
         Because the limit is constantly recalculated, to avoid rounding errors on the instance
         that's currently changed by the user, the changing instance can be skipped from limiting.
         '''
+
         # The ingredient which is currently calling this update when using it's scale should be
-        # skipped from the remaining vol calculation.
+        # skipped from the limit calculation.
 
         # Calc current total volume of ingredients (skipping ingredient that has the fill flag).
         current_total_vol = sum([float_or_zero(ingredient.ml.get()) \
@@ -299,25 +324,25 @@ class Mixer:
 
         for ingredient in self._ingredient_list:
             # Clac ingredients possible max volume rounded to 1 digits of precision
-            row_max = int((float_or_zero(ingredient.ml.get()) + free_volume) * 10) / 10
+            ingredient_max = int((float_or_zero(ingredient.ml.get()) + free_volume) * 10) / 10
 
             # Limit the scale and set the max label
             if ingredient != skip_limiting_ingredient:
-                ingredient.ml_scale.configure(to=row_max)
-                ingredient.ml_remain.set(row_max)
+                ingredient.ml_scale.configure(to=ingredient_max)
+                ingredient.ml_max.set(ingredient_max)
             
             # If the remaining volume is smaller than the rounding error, set max label to 'Full'
             if free_volume < 0.1:
-                ingredient.ml_remain.set('Full')
+                ingredient.ml_max.set('Full')
             else:
-                ingredient.ml_remain.set(ingredient.ml_scale['to'])
+                ingredient.ml_max.set(ingredient.ml_scale['to'])
             
             # If fill is set for an ingredient, clear the max label
             if ingredient.fill_set:
-                ingredient.ml_remain.set('')
+                ingredient.ml_max.set('')
             
             # Set limit attribute on the ingredient
-            ingredient.ml_limit = row_max
+            ingredient.ml_limit = ingredient_max
 
             # Update the volume of the liquid represented by the ingredient instance.
             # This propagates the change of the ml variable to the liquid object.
@@ -329,7 +354,8 @@ class Mixer:
                 'limit': self._container_vol})
         else:
             self.liquid_volume.set('Vol. %(vol).1f ml (in %(limit).1f ml. container)' % {
-                'vol': sum([float_or_zero(ingredient.ml.get()) for ingredient in self._ingredient_list]),
+                'vol': sum([float_or_zero(ingredient.ml.get()) \
+                    for ingredient in self._ingredient_list]),
                 'limit': self._container_vol })
         
         mixture = self.get_mixture()
@@ -338,6 +364,7 @@ class Mixer:
     
     def show_add_ingredient_dialog(self) -> None:
         ''' Opens the dialog that lets the user add a new ingredient to the mixture. '''
+
         if self.new_ingredient_dialog is None:
             self.new_ingredient_dialog = NewIngredientDialog(self.toplevel, self.add_ingredient,
                 window_title='Add Ingredient', destroy_on_close=False, button_text='Add',
@@ -354,46 +381,69 @@ class Mixer:
         '''
         Adds an ingredient to the mixture. If liquid_or_ingredient is a fludo.Liquid (or descendant)
         it will create a MixtureIngredientController representing the liquid.
-        If it's already a MixtureIngredientController, then it will be used.
+        If it's already a MixtureIngredientController, then it will be used as is.
         '''
+
         if liquid_or_ingredient is None:
             return
 
         if isinstance(liquid_or_ingredient, fludo.Liquid):
-            ingredient = MixerIngredientController(self, liquid_or_ingredient)
+            ingredient = MixerIngredientController(self, liquid_or_ingredient, auto_add=False)
         elif isinstance(liquid_or_ingredient, MixerIngredientController):
             ingredient = liquid_or_ingredient
         else:
-            raise Exception('Paremeter liquid_or_ingredient isn\'t either.')
+            raise TypeError('Paremeter liquid_or_ingredient isn\'t the right type.')
         
         if not self._labels_shown:
             self.labels_frame.grid(row=0, column=0, columnspan=6, sticky=tk.E)
             self.start_label.grid_forget()
 
-        self.frame.grid_rowconfigure(self.get_grid_row_idx(ingredient), minsize=30)
+        self.frame.grid_rowconfigure(self.get_ingredient_grid_row(ingredient), minsize=30)
         current_total_vol = sum([float_or_zero(row.ml.get()) for row in self._ingredient_list])
         remaining_vol = self._container_vol - current_total_vol
         ingredient.ml_scale.configure(to=remaining_vol)
-        ingredient.ml_remain.set(remaining_vol)
+        ingredient.ml_max.set(remaining_vol)
 
         self._ingredient_list.append(ingredient)
         self.update()
     
     def get_ingredient(self, ingredient_idx: int) -> 'MixerIngredientController':
-        ''' Returns an ingredient object. '''
+        ''' Returns an ingredient object with given index. '''
+
         return self._ingredient_list[ingredient_idx]
+    
+    def len_ingredients(self) -> int:
+        ''' Returns the number of ingredients currently in the Mixer. '''
+
+        return len(self._ingredient_list)
     
     def load_ingredients(self, ingredients_dict) -> None:
         '''
-        Throws away any ingredient in the mixture and reloads ingredients from a dict.
+        Throws away any ingredient in the Mixer and reloads ingredients from a dict.
         Can be used to pre-populate ingredients for example when opening a previously saved mixture.
+
+        ingredients_dict = {
+            'ingredients': [fludo.Liquid, ...]
+            'filler_idx': Optional[int]
+            'container_vol': int
+        }
+
+        Mixer.get_ingredients() returns such a dict.
         '''
+
         if not ingredients_dict:
             return
 
         ingredients_max_vol = sum([liquid.ml for liquid in ingredients_dict['ingredients']])
         if ingredients_max_vol > ingredients_dict['container_vol']:
             raise Exception('Ingredients volume exceeds container volume.')
+        
+        if ingredients_dict['container_vol'] < const.CONTAINER_MIN:
+            raise ValueError('Container volume is lesser than minimum allowed!')
+        if ingredients_dict['container_vol'] > const.CONTAINER_MAX:
+            raise ValueError('Container volume is greater than maximum allowed!')
+        if len(ingredients_dict['ingredients']) > const.MAX_INGREDIENTS:
+            raise ValueError('Number of ingredients exceeds the maximum allowed!')
 
         for ingredient in self._ingredient_list:
             self.remove_ingredient(ingredient)
@@ -408,32 +458,40 @@ class Mixer:
         
         self.update()
     
-    def get_filler_idx(self) -> Optional[int]:
+    def get_filler_idx(self) -> Union[int, None]:
         '''
         Returns the index of the ingredient that has the fill flag set. Returns None if the fill
         flag is not set on any of the ingredients.
         '''
+
         for idx, row in enumerate(self._ingredient_list):
             if row.fill_set:
                 return idx
         return None
     
-    def get_ingredients(self):
+    def get_ingredients(self) -> dict:
+        '''
+        Returns all ingredients, including container volume and the filler ingredient's index.
+        The returned dict can be passed to Mixer.load_ingredients to load it up.
+        '''
+
         return {
             'ingredients': [ingredient.get_liquid() for ingredient in self._ingredient_list],
             'container_vol': self.get_container_volume(),
             'filler_idx': self.get_filler_idx()
         }
     
-    def remove_ingredient(self, ingredient_or_idx):
+    def remove_ingredient(self, ingredient_or_idx: Union['MixerIngredientController', int]) -> None:
+        ''' Remove an ingredient either by index or ingredient instance. '''
+
         if ingredient_or_idx is None:
             return
         
         if isinstance(ingredient_or_idx, MixerIngredientController):
-            row_idx = self.get_grid_row_idx(ingredient_or_idx)
+            grid_row_idx = self.get_ingredient_grid_row(ingredient_or_idx)
             ingredient = ingredient_or_idx
         else:
-            row_idx = self.get_grid_row_idx(self.get_ingredient(ingredient_or_idx))
+            grid_row_idx = self.get_ingredient_grid_row(self.get_ingredient(ingredient_or_idx))
             ingredient = self.get_ingredient(ingredient_or_idx)
 
         if ingredient.fill_set:
@@ -441,42 +499,54 @@ class Mixer:
         
         for widget in self.frame.grid_slaves():
             try:
-                if widget.grid_info()['row'] == row_idx:
+                if widget.grid_info()['row'] == grid_row_idx:
                     widget.grid_forget()
                     widget.destroy()
             except KeyError:
                 # Already deleted by a parent widget while iterating
                 pass
         self._ingredient_list.remove(ingredient_or_idx)
-        self.frame.grid_rowconfigure(row_idx, minsize=0) # Hide row
+        self.frame.grid_rowconfigure(grid_row_idx, minsize=0) # Hide row
         self.update()
 
         # Show start message if there are no rows left
-        if self.get_last_grid_row_idx() == 1:
+        if self.get_last_grid_row() == 1:
             self.labels_frame.grid_forget()
             self.start_label.grid(row=997, column=0, columnspan=6)
             self._labels_shown = False
 
-        # FIXME Grid row recycle, so we don't count up indefinitely
+        # FIXME Grid row recycle, so we don't count up with grid rows indefinitely
         # It isn't likely to cause issues any time soon, though
     
-    def get_last_grid_row_idx(self):
+    def get_last_grid_row(self) -> int:
+        ''' Returns the last grid row that has a ingredient's widgets. '''
+
         last_row = 1
         for row in self._ingredient_list:
-            row_idx = row.name_label.grid_info()['row']
-            if row_idx > last_row:
-                last_row = row_idx
+            grid_row_idx = row.name_label.grid_info()['row']
+            if grid_row_idx > last_row:
+                last_row = grid_row_idx
         return last_row
     
-    def get_grid_row_idx(self, ingredient: 'MixerIngredientController'):
-        return ingredient.name_label.grid_info()['row']
+    def get_ingredient_grid_row(self,
+        ingredient_or_idx: Union['MixerIngredientController', int]) -> int:
+        ''' Returns the grid row the ingredient resides in. '''
+
+        if isinstance(ingredient_or_idx, int):
+            return self.get_ingredient(ingredient_or_idx).name_label.grid_info()['row']
+        else:
+            return ingredient_or_idx.name_label.grid_info()['row']
     
-    def get_ingredient_idx(self, ingredient: 'MixerIngredientController'):
+    def get_ingredient_idx(self, ingredient: 'MixerIngredientController') -> int:
+        ''' Returns the ingredient's index. '''
+
         for ingredient, idx in enumerate(self._ingredient_list):
             if ingredient == ingredient:
                 return idx
     
-    def toggle_fill(self, ingredient: 'MixerIngredientController'):
+    def toggle_fill(self, ingredient: 'MixerIngredientController') -> None:
+        ''' Toggles the fill behaviour on the ingredients. '''
+
         for row in self._ingredient_list:
             if row == ingredient:
                 if ingredient.fill_set:
@@ -492,7 +562,18 @@ class Mixer:
 
 
 class MixerIngredientController(FloatValidator):
-    def __init__(self, mixer: Mixer, liquid: fludo.Liquid):
+    '''
+    Class of ingredient instances residing in a Mixer. It will add it's own widgets to Mixer's
+    frame. When auto_add is true, it will also call Mixer's add_ingredient method, this is what
+    normally happens if MixerIngredientController is instantiated independently from Mixer.
+
+    When it's instantiated from Mixer's add_ingredient, auto_add must be False, so it doesn't call
+    the add_ingredient method a second time.
+
+    The sole purpose of this class is to control a single fludo.Liquid's properties.
+    '''
+
+    def __init__(self, mixer: Mixer, liquid: fludo.Liquid, auto_add: bool=True):
         if not isinstance(mixer, Mixer):
             raise Exception('Mixer parameter not instance of Mixer class.')
         if not isinstance(liquid, fludo.Liquid):
@@ -522,16 +603,20 @@ class MixerIngredientController(FloatValidator):
                  self._update_var_from_scale(self.ml_scale, self.ml, digits=1))
         self.ml_scale_ttip = CreateToolTip(self.ml_scale, 'Adjust amount')
 
-        self.ml_remain = tk.StringVar()
-        self.ml_remain_label = ttk.Label(self.mixer.frame, textvariable=self.ml_remain)
-        self.ml_remain_label_ttip = CreateToolTip(self.ml_remain_label,
+        self.ml_max = tk.StringVar()
+        self.ml_max_label = ttk.Label(self.mixer.frame, textvariable=self.ml_max)
+        self.ml_max_label_ttip = CreateToolTip(self.ml_max_label,
             'Max possible amount\nfor the ingredient.')
 
         self.ml_entry = ttk.Entry(self.mixer.frame, width=7, textvariable=self.ml)
-        self.ml_entry_validator = self.ml_entry.register(self.validate_float_entry)
-        self.ml_scale_remain = lambda: self.ml_scale.cget('to')
+        self.ml_entry_validator = self.ml_entry.register(self.validate_float_entry) # FloatValidator
+
+        # This function always returns the max volume possible for the ingredient, so that the
+        # validator follows the changes in the max possible volume
+        self.get_max_ml = lambda: self.ml_scale.cget('to')
+
         self.ml_entry.configure(validate='all',
-            validatecommand=(self.ml_entry_validator, '%d','%P', 'ml_entry', 0, 'ml_scale_remain'))
+            validatecommand=(self.ml_entry_validator, '%d','%P', 'ml_entry', 0, 'get_max_ml'))
         
         # Shown instead of the scale if fill is selected for the component
         self.fill_label = ttk.Label(self.mixer.frame, text='(will fill container)')
@@ -548,37 +633,47 @@ class MixerIngredientController(FloatValidator):
             self.show_remove_dialog())
         self.destroy_button_ttip = CreateToolTip(self.destroy_button, 'Remove ingredient')
 
-        row_idx = self.mixer.get_last_grid_row_idx() + 1 # Row number within Mixer table
+        grid_row_idx = self.mixer.get_last_grid_row() + 1 # Grid row number within Mixer frame
 
         self.name_label.grid(
-            row=row_idx, column=0, padx=10, sticky=tk.E)
+            row=grid_row_idx, column=0, padx=10, sticky=tk.E)
         self.ml_scale.grid(
-            row=row_idx, column=1)
-        self.ml_remain_label.grid(
-            row=row_idx, column=2, padx=17)
+            row=grid_row_idx, column=1)
+        self.ml_max_label.grid(
+            row=grid_row_idx, column=2, padx=17)
         self.fill_button.grid(
-            row=row_idx, column=3, padx=5)
+            row=grid_row_idx, column=3, padx=5)
         self.ml_entry.grid(
-            row=row_idx, column=4, padx=5)
+            row=grid_row_idx, column=4, padx=5)
         self.edit_button.grid(
-            row=row_idx, column=5, padx=5)
+            row=grid_row_idx, column=5, padx=5)
         self.destroy_button.grid(
-            row=row_idx, column=6, padx=14)
+            row=grid_row_idx, column=6, padx=14)
         
         self.fill_set = False
         self.editor_dialog = None
         self.remove_dialog = None
+
+        # Add self to Mixer if auto_add is True.
+        if auto_add:
+            self.mixer.add_ingredient(self)
     
-    def _update_var_from_scale(self, scale, variable, digits=1):
+    def _update_var_from_scale(self, scale: ttk.Scale, variable: tk.Variable, digits: int=1) -> None:
+        ''' Called from a scale to limit it's bound variable to a number of precision digits '''
+
+        # TODO NTH Would be cleaner if variable was gotten from the scale rather than passed
+
         value = int(float(scale.get()) * pow(10, digits)) / pow(10, digits)
         variable.set(value)
     
-    def _unset_fill(self):
+    def _unset_fill(self) -> None:
+        ''' Only Mixer must call this when toggling the fill. '''
+
         self.fill_label.grid_forget()
-        self.ml_scale.grid(row=self.mixer.get_grid_row_idx(self), column=1)
+        self.ml_scale.grid(row=self.mixer.get_ingredient_grid_row(self), column=1)
         self.ml_entry.configure(state='normal')
         try:
-            self.ml_remain.trace_vdelete('w', self._fill_traceid)
+            self.ml_max.trace_vdelete('w', self._fill_traceid)
             del(self._fill_traceid)
         except (AttributeError, tk._tkinter.TclError):
             # not set
@@ -587,11 +682,13 @@ class MixerIngredientController(FloatValidator):
         self.fill_button.configure(text='⚪')
         self.fill_set = False
 
-    def _set_fill(self):
+    def _set_fill(self) -> None:
+        ''' Only Mixer must call this when toggling the fill. '''
+
         self.ml_scale.grid_forget()
-        self.fill_label.grid(row=self.mixer.get_grid_row_idx(self), column=1)
+        self.fill_label.grid(row=self.mixer.get_ingredient_grid_row(self), column=1)
         self.ml_entry.configure(state='readonly')
-        self._fill_traceid = self.ml_remain.trace('w', lambda var, idx, op:
+        self._fill_traceid = self.ml_max.trace('w', lambda var, idx, op:
             self.ml.set(
                 int( (self.mixer.get_container_volume() - sum([float_or_zero(ingredient.ml.get()) \
                     for ingredient in self.mixer._ingredient_list if ingredient != self])) * 10 ) / 10
@@ -600,7 +697,9 @@ class MixerIngredientController(FloatValidator):
         self.fill_button.configure(text='⚫')
         self.fill_set = True
 
-    def show_editor_dialog(self):
+    def show_editor_dialog(self) -> None:
+        ''' Opens an editor so the liquid's properties can be changed. '''
+
         if self.editor_dialog is None:
             self.editor_dialog = NewIngredientDialog(self.mixer.toplevel, self.set_liquid,
                 window_title='Edit Ingredient', button_text='OK', liquid=self.liquid,
@@ -610,27 +709,30 @@ class MixerIngredientController(FloatValidator):
         self.editor_dialog.name_entry.focus()
         self.editor_dialog.toplevel.deiconify()
     
-    def show_remove_dialog(self):
-        if self.mixer.ask_remove:
-            if self.remove_dialog is None:
-                self.remove_dialog = YesNoDialog(self.mixer.toplevel,
-                    callback=lambda ok_clicked, ingredient:
-                        self.mixer.remove_ingredient(ingredient if ok_clicked else None),
-                    ingredient=self,
-                    window_title='Remove Ingredient',
-                    text='',
-                    destroy_on_close=False)
-            self.remove_dialog.label.configure(
-                text=('Are you sure you wish to remove\n'
-                      '%(name)s, %(pg)dPG/%(vg)dVG, nic. %(nic).1f mg/ml?') % {
-                'name': self.liquid.name,
-                'pg': self.liquid.pg,
-                'vg': self.liquid.vg,
-                'nic': self.liquid.nic })
-            self.remove_dialog.ok_button.focus()
-            self.remove_dialog.toplevel.deiconify()
+    def show_remove_dialog(self) -> None:
+        ''' Asks the user if they are sure to remove the ingredient from Mixer. '''
 
-    def set_liquid(self, liquid):
+        if self.remove_dialog is None:
+            self.remove_dialog = YesNoDialog(self.mixer.toplevel,
+                callback=lambda ok_clicked, ingredient:
+                    self.mixer.remove_ingredient(ingredient if ok_clicked else None),
+                ingredient=self,
+                window_title='Remove Ingredient',
+                text='',
+                destroy_on_close=False)
+        self.remove_dialog.label.configure(
+            text=('Are you sure you wish to remove\n'
+                    '%(name)s, %(pg)dPG/%(vg)dVG, nic. %(nic).1f mg/ml?') % {
+            'name': self.liquid.name,
+            'pg': self.liquid.pg,
+            'vg': self.liquid.vg,
+            'nic': self.liquid.nic })
+        self.remove_dialog.ok_button.focus()
+        self.remove_dialog.toplevel.deiconify()
+
+    def set_liquid(self, liquid: fludo.Liquid) -> None:
+        ''' Sets the liquid the controller represents. '''
+
         self.liquid = liquid
         if self.liquid.ml > 0:
             self.ml.set(self.liquid.ml)
@@ -642,5 +744,7 @@ class MixerIngredientController(FloatValidator):
                 'nic': self.liquid.nic })
         self.mixer.update()
     
-    def get_liquid(self):
+    def get_liquid(self) -> fludo.Liquid:
+        ''' Returns the represented liquid. '''
+
         return self.liquid

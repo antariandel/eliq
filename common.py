@@ -23,8 +23,8 @@ class FloatValidator:
     '''
     Used to validate tkinter entry widgets accepting only input that still results in a float.
     Inherit this to add the validate_float_entry method to your class.
-
     '''
+    
     def validate_float_entry(self, action: str, value: str,
         widget_obj_name: str, min_value_or_attrname: str, max_value_or_attrname: str) -> bool:
         '''
@@ -103,6 +103,7 @@ class FloatValidator:
 class CreateToolTip:
     # Source: https://stackoverflow.com/questions/3221956/how-do-i-display-tooltips-in-tkinter
     ''' Create a tooltip for a given widget. '''
+
     def __init__(self, widget: tk.Widget, text='widget info'):
         self.waittime = 500 #ms
         self.wraplength = 180 #pixels
@@ -156,6 +157,7 @@ class CreateToolTip:
 
 class BaseDialog(ABC):
     ''' Abstract Base Class for dialogs. '''
+
     def __init__(self, parent: tk.Widget, callback: types.FunctionType, window_title: str,
             text: str, destroy_on_close: bool=True, **kwargs):
         self.parent = parent
@@ -185,15 +187,20 @@ class BaseDialog(ABC):
         center_toplevel(self.toplevel)
     
     def configure_widgets(self, **kwargs):
-        ''' Override this to add and reconfigure widgets in the dialog. Use self.frame as parent.
+        '''
+        Override this to add and reconfigure widgets in the dialog. Use self.frame as parent.
         Use the grid geometry manager. Row 0 is the main label, row 10 is the buttons' row.
-        Column 0 in row 10 is the self.ok_button. '''
+        Column 0 in row 10 is the self.ok_button.
+        '''
+
         pass
     
     @abstractmethod
     def close(self, ok_clicked: bool=False, **kwargs):
-        ''' Override this to call self.callback somehow.
-        Then super().close(ok_clicked, **kwargs) to close the dialog. '''
+        '''
+        Override this to call self.callback somehow.
+        Then super().close(ok_clicked, **kwargs) to close the dialog.
+        '''
 
         if self.destroy_on_close:
             self.toplevel.destroy()

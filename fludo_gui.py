@@ -7,7 +7,8 @@ import tkinter as tk
 
 from fludo import Liquid
 
-from mixer import Mixer, MixerIngredientController
+from mixer import Mixer
+
 
 ingredients = {
     'ingredients': [
@@ -24,7 +25,7 @@ if __name__ == '__main__':
     tk_root = tk.Tk()
     tk_root.title('Fludo')
 
-    # TODO Create main window with recipe list
+    # Will open library here as main window instead of Mixer
 
     mixer = Mixer(tk_root)
     mixer.load_ingredients(ingredients)
