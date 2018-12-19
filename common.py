@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 
 
-def float_or_zero(value):
+def float_or_zero(value) -> bool:
     try:
         return float(value)
     except ValueError:
@@ -186,7 +186,7 @@ class BaseDialog(ABC):
 
         center_toplevel(self.toplevel)
     
-    def configure_widgets(self, **kwargs):
+    def configure_widgets(self, **kwargs) -> None:
         '''
         Override this to add and reconfigure widgets in the dialog. Use self.frame as parent.
         Use the grid geometry manager. Row 0 is the main label, row 10 is the buttons' row.
@@ -196,7 +196,7 @@ class BaseDialog(ABC):
         pass
     
     @abstractmethod
-    def close(self, ok_clicked: bool=False, **kwargs):
+    def close(self, ok_clicked: bool=False, **kwargs) -> None:
         '''
         Override this to call self.callback somehow.
         Then super().close(ok_clicked, **kwargs) to close the dialog.
@@ -209,28 +209,28 @@ class BaseDialog(ABC):
 
 
 class OkDialog(BaseDialog):
-    def close(self, ok_clicked: bool, **kwargs):
+    def close(self, ok_clicked: bool, **kwargs) -> None:
         self.callback(ok_clicked, **kwargs)
 
         super().close()
 
 
 class YesNoDialog(BaseDialog):
-    def configure_widgets(self, **kwargs):
+    def configure_widgets(self, **kwargs) -> None:
         self.ok_button.configure(text='Yes', width=15)
         self.no_button = ttk.Button(self.frame, text='No', width=15,
             command=lambda: self.close(False, **kwargs))
         self.no_button.grid(row=10, column=1, sticky=tk.E)
         self.ok_button.grid(row=10, column=0, sticky=tk.W)
 
-    def close(self, ok_clicked: bool, **kwargs):
+    def close(self, ok_clicked: bool, **kwargs) -> None:
         self.callback(ok_clicked, **kwargs)
 
         super().close()
 
 
 class FloatEntryDialog(BaseDialog, FloatValidator):
-    def configure_widgets(self, **kwargs):
+    def configure_widgets(self, **kwargs) -> None:
         self.entry_value = tk.StringVar()
         self.entry_value.set(kwargs['default_value'])
 
@@ -241,6 +241,7 @@ class FloatEntryDialog(BaseDialog, FloatValidator):
                 kwargs['min_value'], kwargs['max_value']))
         self.entry.grid(row=1, columnspan=2, pady=10)
         self.entry.focus()
+        self.entry.bind('<Return>', lambda event: self.close(True))
 
         self.ok_button.configure(text='OK')
         
@@ -248,8 +249,46 @@ class FloatEntryDialog(BaseDialog, FloatValidator):
             command=lambda: self.close(False))
         self.no_button.grid(row=10, column=1, sticky=tk.W+tk.E)
     
-    def close(self, ok_clicked: bool, **kwargs):
+    def close(self, ok_clicked: bool, **kwargs) -> None:
         if ok_clicked:
             self.callback(float(self.entry.get()))
+        
+        super().close()
+
+class StringDialog(BaseDialog):
+    def configure_widgets(self, max_length=100, **kwargs):
+        self.entry_value = tk.StringVar()
+        self.entry_value.set(kwargs['default_value'])
+        self.default_value = kwargs['default_value']
+
+        self.entry = ttk.Entry(self.frame, textvariable=self.entry_value, width=30)
+        self._entry_validator = self.entry.register(self.validate_entry)
+        self.entry.configure(validate='all',
+            validatecommand=(self._entry_validator, '%d', '%P', max_length))
+        self.entry.grid(row=1, columnspan=2, pady=10)
+        self.entry.focus()
+        self.entry.bind('<Return>', lambda event: self.close(True))
+
+        self.ok_button.configure(text='OK')
+        
+        self.no_button = ttk.Button(self.frame, text='Cancel', width=10,
+            command=lambda: self.close(False))
+        self.no_button.grid(row=10, column=1, sticky=tk.W+tk.E)
+    
+    def validate_entry(self, action: str, value: str, max_length: int) -> bool:
+        if action == '-1':
+            if self.entry_value.get() == self.default_value:
+                self.entry_value.set('')
+            elif not self.entry_value.get():
+                self.entry_value.set(self.default_value)
+        
+        if len(value) < float_or_zero(max_length):
+            return True
+        else:
+            return False
+    
+    def close(self, ok_clicked: bool, **kwargs) -> None:
+        if ok_clicked:
+            self.callback(self.entry.get())
         
         super().close()

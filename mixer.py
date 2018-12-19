@@ -9,15 +9,17 @@ from typing import List, Optional, Union
 import fludo
 
 from common import (float_or_zero, center_toplevel, CreateToolTip, YesNoDialog, FloatEntryDialog,
-    FloatValidator, BaseDialog)
+    FloatValidator, BaseDialog, StringDialog)
 
 import const
 
 const.CONTAINER_MIN = 10
 const.CONTAINER_MAX = 10000
-const.MAX_INGREDIENTS = 10
-# TODO Limit the max number of ingredients allowed when adding
-
+const.MAX_INGREDIENTS = 20
+# TODO Limit the max number of ingredients allowed when adding, by disabling the Add button.
+const.MAX_MIXTURE_NAME_LENGTH = 30
+const.DEFAULT_MIXTURE_NAME = 'Unsaved Mixture'
+const.DEFAULT_INGREDIENT_NAME = 'Unnamed Ingredient'
 
 class NewIngredientDialog(BaseDialog):
     '''
@@ -26,7 +28,7 @@ class NewIngredientDialog(BaseDialog):
 
     def configure_widgets(self, **kwargs):
         self.name = tk.StringVar()
-        self.name.set('Unnamed Ingredient' if not 'liquid' in kwargs else kwargs['liquid'].name)
+        self.name.set(const.DEFAULT_INGREDIENT_NAME if not 'liquid' in kwargs else kwargs['liquid'].name)
 
         self.pg = tk.StringVar()
         self.pg.set('0' if not 'liquid' in kwargs else kwargs['liquid'].pg)
@@ -102,8 +104,8 @@ class NewIngredientDialog(BaseDialog):
         if 'name_entry' in widget_name:
             if action == '-1': # focus change
                 if not value:
-                    self.name.set('Unnamed Ingredient')
-                elif self.name.get() == 'Unnamed Ingredient':
+                    self.name.set(const.DEFAULT_INGREDIENT_NAME)
+                elif self.name.get() == const.DEFAULT_INGREDIENT_NAME:
                     self.name.set('')
             if len(value) < 30:
                 return True
@@ -168,7 +170,7 @@ class NewIngredientDialog(BaseDialog):
 
         if ok_clicked:
             self.callback(fludo.Liquid(
-                name='Unnamed Ingredient' if not self.name.get() else self.name.get(),
+                name=const.DEFAULT_INGREDIENT_NAME if not self.name.get() else self.name.get(),
                 pg=float_or_zero(self.pg.get()),
                 vg=float_or_zero(self.vg.get()),
                 nic=float_or_zero(self.nic.get())
@@ -183,32 +185,35 @@ class Mixer:
     MixerIngredientController objects (the ingredients of the mixture).
     '''
 
-    def __init__(self, parent: tk.Widget):
+    def __init__(self, parent: tk.Widget, mixture_name: str):
         self.parent = parent
+        self.name = tk.StringVar()
+        self.name.set(mixture_name)
 
         self.toplevel = tk.Toplevel(self.parent)
-        self.toplevel.title('Fludo | Liquid Mixer')
+        self.toplevel.title('Fludo | Liquid Mixer | %s' % self.name.get())
         self.toplevel.resizable(False, False)
 
         self.frame = ttk.Frame(self.toplevel)
         self.frame.grid(row=0, column=0, sticky=tk.W+tk.E+tk.N+tk.S)
-        self.frame.grid_rowconfigure(0, minsize=32)
         self.frame.grid_columnconfigure(0, minsize=150)
         self.frame.grid_columnconfigure(1, minsize=250)
-        self.frame.grid_columnconfigure(2, minsize=60)
+        self.frame.grid_columnconfigure(2, minsize=90)
 
         self.labels_frame = ttk.Frame(self.frame)
-        self.labels_frame.grid_columnconfigure(5, minsize=40)
-        self.labels_frame.grid_columnconfigure(3, minsize=33)
+        #self.labels_frame.grid_columnconfigure(5, minsize=40)
+        #self.labels_frame.grid_columnconfigure(3, minsize=33)
 
         self.max_label = ttk.Label(self.labels_frame, text='Max. (ml)')
-        self.max_label.grid(row=0, column=2, padx=5)
+        self.max_label.grid(row=0, column=0, padx=5)
+        self.labels_frame.columnconfigure(1, minsize=57)
 
         self.ml_label = ttk.Label(self.labels_frame, text='Vol. (ml)')
-        self.ml_label.grid(row=0, column=4, padx=5)
+        self.ml_label.grid(row=0, column=2, padx=5)
+        self.labels_frame.columnconfigure(3, minsize=110)
 
         self.statusbar_frame = ttk.Frame(self.frame, borderwidth=1, relief=tk.GROOVE)
-        self.frame.grid_rowconfigure(999, minsize=32)
+        self.frame.grid_rowconfigure(999, minsize=40)
         self.statusbar_frame.grid(row=999, columnspan=7, sticky=tk.W+tk.E+tk.S)
         
         self.liquid_volume = tk.StringVar()
@@ -221,23 +226,33 @@ class Mixer:
         self.mixture_description_label.grid(row=0, column=0, pady=3, padx=5, sticky=tk.W)
 
         self.start_label = ttk.Label(self.frame, text='Start by adding an ingredient.')
-        self.start_label.grid(row=997, column=0, columnspan=6)
+        self.start_label.grid(row=997, column=0, columnspan=7)
 
-        self.button_frame = ttk.Frame(self.frame)
-        self.button_frame.grid(row=998, columnspan=6, pady=10)
+        self.button_frame = ttk.Frame(self.frame, width=700, height=32)
+        self.button_frame.grid_propagate(False)
+        self.button_frame.grid(row=0, columnspan=7, pady=10, padx=10)
+        self.button_frame.grid_rowconfigure(0, minsize=32)
 
         self.add_button = ttk.Button(self.button_frame, text='Add Ingredient', width=20,
             command=self.show_add_ingredient_dialog)
-        self.add_button.bind('<Return>', lambda event: self.show_add_ingredient_dialog())
+        self.add_button_ttip = CreateToolTip(self.add_button, 'Add new ingredient to the mixture.')
+        self.add_button.grid(row=0, column=0, padx=5, sticky=tk.N)
         
         # Ctrl+A
         self.toplevel.bind('<Control-Key-a>', lambda event: self.show_add_ingredient_dialog())
-        self.add_button.grid(row=998, column=0, padx=5)
 
         self.change_container_button = ttk.Button(self.button_frame, text='Change Container Size',
             width=20, command=self.show_change_container_dialog)
-        self.change_container_button.grid(row=998, column=1, padx=5)
+        self.change_container_button_ttip = CreateToolTip(self.change_container_button,
+            'Resize the container preserving ingredient proportions.')
+        self.change_container_button.grid(row=0, column=1, padx=5, sticky=tk.N)
 
+        self.rename_mixture_button = ttk.Button(self.button_frame, text='Rename Mixture',
+            width=20, command=self.show_rename_mixture_dialog)
+        self.rename_mixture_button_ttip = CreateToolTip(self.rename_mixture_button,
+            'Give your mixture a name.')
+        self.rename_mixture_button.grid(row=0, column=2, padx=5, sticky=tk.N)
+ 
         self.fill_set = False
 
         self._labels_shown = False
@@ -246,6 +261,7 @@ class Mixer:
 
         self.new_ingredient_dialog = None
         self.change_container_dialog = None
+        self.rename_mixture_dialog = None
 
         center_toplevel(self.toplevel)
         self.toplevel.lift()
@@ -264,6 +280,28 @@ class Mixer:
                 destroy_on_close=False)
         self.change_container_dialog.toplevel.deiconify()
         self.change_container_dialog.entry.focus()
+    
+    def rename(self, new_name) -> None:
+        if len(new_name) < const.MAX_MIXTURE_NAME_LENGTH:
+            self.name.set(new_name)
+            self.toplevel.title('Fludo | Liquid Mixer | %s' % new_name)
+        else:
+            raise Exception('Name too long!')
+    
+    def show_rename_mixture_dialog(self) -> None:
+        ''' Opens a dialog that lets the user (re)name the mixture. '''
+
+        if self.rename_mixture_dialog is None:
+            self.rename_mixture_dialog = StringDialog(self.toplevel,
+                window_title='Rename Mixture',
+                text=('Give the mixture a name below.\n'
+                      'Max %d characters are allowed.' % const.MAX_MIXTURE_NAME_LENGTH),
+                max_length=const.MAX_MIXTURE_NAME_LENGTH,
+                default_value=const.DEFAULT_MIXTURE_NAME,
+                callback=self.rename,
+                destroy_on_close=False)
+        self.rename_mixture_dialog.toplevel.deiconify()
+        self.rename_mixture_dialog.entry.focus()
 
     def set_container_volume(self, ml: Union[int, float]) -> None:
         ''' Updates the container volume (size). '''
@@ -340,9 +378,6 @@ class Mixer:
             # If fill is set for an ingredient, clear the max label
             if ingredient.fill_set:
                 ingredient.ml_max.set('')
-            
-            # Set limit attribute on the ingredient
-            ingredient.ml_limit = ingredient_max
 
             # Update the volume of the liquid represented by the ingredient instance.
             # This propagates the change of the ml variable to the liquid object.
@@ -370,7 +405,7 @@ class Mixer:
                 window_title='Add Ingredient', destroy_on_close=False, button_text='Add',
                 text='Fill in the liquid\'s properties below:')
         self.new_ingredient_dialog.toplevel.deiconify()
-        self.new_ingredient_dialog.name.set('Unnamed Ingredient')
+        self.new_ingredient_dialog.name.set(const.DEFAULT_INGREDIENT_NAME)
         self.new_ingredient_dialog.pg.set(0)
         self.new_ingredient_dialog.vg.set(0)
         self.new_ingredient_dialog.nic.set(0)
@@ -395,7 +430,7 @@ class Mixer:
             raise TypeError('Paremeter liquid_or_ingredient isn\'t the right type.')
         
         if not self._labels_shown:
-            self.labels_frame.grid(row=0, column=0, columnspan=6, sticky=tk.E)
+            self.labels_frame.grid(row=1, column=0, columnspan=7, sticky=tk.E)
             self.start_label.grid_forget()
 
         self.frame.grid_rowconfigure(self.get_ingredient_grid_row(ingredient), minsize=30)
@@ -424,6 +459,7 @@ class Mixer:
 
         ingredients_dict = {
             'ingredients': [fludo.Liquid, ...]
+            'name': str
             'filler_idx': Optional[int]
             'container_vol': int
         }
@@ -457,6 +493,7 @@ class Mixer:
             self.toggle_fill(self._ingredient_list[ingredients_dict['filler_idx']])
         
         self.update()
+        center_toplevel(self.toplevel)
     
     def get_filler_idx(self) -> Union[int, None]:
         '''
@@ -510,9 +547,9 @@ class Mixer:
         self.update()
 
         # Show start message if there are no rows left
-        if self.get_last_grid_row() == 1:
+        if self.get_last_grid_row() == 2:
             self.labels_frame.grid_forget()
-            self.start_label.grid(row=997, column=0, columnspan=6)
+            self.start_label.grid(row=997, column=0, columnspan=7)
             self._labels_shown = False
 
         # FIXME Grid row recycle, so we don't count up with grid rows indefinitely
@@ -521,7 +558,7 @@ class Mixer:
     def get_last_grid_row(self) -> int:
         ''' Returns the last grid row that has a ingredient's widgets. '''
 
-        last_row = 1
+        last_row = 2
         for row in self._ingredient_list:
             grid_row_idx = row.name_label.grid_info()['row']
             if grid_row_idx > last_row:
@@ -540,8 +577,8 @@ class Mixer:
     def get_ingredient_idx(self, ingredient: 'MixerIngredientController') -> int:
         ''' Returns the ingredient's index. '''
 
-        for ingredient, idx in enumerate(self._ingredient_list):
-            if ingredient == ingredient:
+        for idx, ingred in enumerate(self._ingredient_list):
+            if ingred == ingredient:
                 return idx
     
     def toggle_fill(self, ingredient: 'MixerIngredientController') -> None:
@@ -584,7 +621,7 @@ class MixerIngredientController(FloatValidator):
 
         self.ml = tk.StringVar()
         self.ml.set(float(self.liquid.ml))
-        self.ml.trace('w', lambda var, idx, op:
+        self._ml_traceid = self.ml.trace('w', lambda var, idx, op:
             self.mixer.update(self))
 
         self.name = tk.StringVar()
@@ -672,12 +709,20 @@ class MixerIngredientController(FloatValidator):
         self.fill_label.grid_forget()
         self.ml_scale.grid(row=self.mixer.get_ingredient_grid_row(self), column=1)
         self.ml_entry.configure(state='normal')
+    
         try:
             self.ml_max.trace_vdelete('w', self._fill_traceid)
             del(self._fill_traceid)
         except (AttributeError, tk._tkinter.TclError):
             # not set
             pass
+        
+        try:
+            self._ml_traceid
+        except AttributeError:
+            self._ml_traceid = self.ml.trace('w', lambda var, idx, op:
+                self.mixer.update(self))
+        
         self.mixer.update(self)
         self.fill_button.configure(text='⚪')
         self.fill_set = False
@@ -688,11 +733,23 @@ class MixerIngredientController(FloatValidator):
         self.ml_scale.grid_forget()
         self.fill_label.grid(row=self.mixer.get_ingredient_grid_row(self), column=1)
         self.ml_entry.configure(state='readonly')
-        self._fill_traceid = self.ml_max.trace('w', lambda var, idx, op:
-            self.ml.set(
-                int( (self.mixer.get_container_volume() - sum([float_or_zero(ingredient.ml.get()) \
-                    for ingredient in self.mixer._ingredient_list if ingredient != self])) * 10 ) / 10
-            ))
+
+        try:
+            self.ml.trace_vdelete('w', self._ml_traceid)
+            del(self._ml_traceid)
+        except (AttributeError, tk._tkinter.TclError):
+            # not set
+            pass
+
+        try:
+            self._fill_traceid
+        except AttributeError:
+            self._fill_traceid = self.ml_max.trace('w', lambda var, idx, op:
+                self.ml.set(
+                    int( (self.mixer.get_container_volume() - sum([float_or_zero(ingr.ml.get()) \
+                        for ingr in self.mixer._ingredient_list if ingr != self])) * 10 ) / 10
+                ))
+        
         self.mixer.update(self)
         self.fill_button.configure(text='⚫')
         self.fill_set = True
