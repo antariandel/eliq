@@ -15,8 +15,12 @@ def float_or_zero(value) -> bool:
         return float(0)
 
 
-def center_toplevel(toplevel: tk.Toplevel):
+def center_toplevel(toplevel: tk.Toplevel) -> None:
     toplevel.nametowidget('.').eval('tk::PlaceWindow %s center' % toplevel.winfo_toplevel())
+
+
+def round_digits(value: Union[int, float], digits: int) -> float:
+    return int(float(value) * pow(10, digits)) / pow(10, digits)
 
 
 class FloatValidator:
@@ -159,11 +163,13 @@ class BaseDialog(ABC):
     ''' Abstract Base Class for dialogs. '''
 
     def __init__(self, parent: tk.Widget, callback: types.FunctionType, window_title: str,
-            text: str, destroy_on_close: bool=True, **kwargs):
+            text: str, destroy_on_close: bool=True, iconbitmap='icon.ico', **kwargs):
         self.parent = parent
 
         self.toplevel = tk.Toplevel(self.parent)
+        self.toplevel.withdraw()
         self.toplevel.title(window_title)
+        self.toplevel.iconbitmap(iconbitmap)
         self.toplevel.resizable(False, False)
         self.toplevel.protocol('WM_DELETE_WINDOW', lambda: self.close(False, **kwargs))
         self.toplevel.focus()
@@ -234,7 +240,7 @@ class FloatEntryDialog(BaseDialog, FloatValidator):
         self.entry_value = tk.StringVar()
         self.entry_value.set(kwargs['default_value'])
 
-        self.entry = ttk.Entry(self.frame, textvariable=self.entry_value)
+        self.entry = ttk.Entry(self.frame, textvariable=self.entry_value, width=30)
         self._entry_validator = self.entry.register(self.validate_float_entry)
         self.entry.configure(validate='all',
             validatecommand=(self._entry_validator, '%d', '%P', 'entry',
@@ -288,6 +294,9 @@ class StringDialog(BaseDialog):
             return False
     
     def close(self, ok_clicked: bool, **kwargs) -> None:
+        if self.entry_value.get() == '':
+            self.entry_value.set(self.default_value)
+        
         if ok_clicked:
             self.callback(self.entry.get())
         
