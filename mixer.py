@@ -223,7 +223,7 @@ class Mixer:
         self.ml_label.grid(row=0, column=2, padx=5)
         self.labels_frame.columnconfigure(3, minsize=110)
 
-        self.statusbar_frame = ttk.Frame(self.frame, borderwidth=1, relief=tk.GROOVE)
+        self.statusbar_frame = ttk.Frame(self.frame)
         self.frame.grid_rowconfigure(999, minsize=40)
         self.statusbar_frame.grid(row=999, columnspan=7, sticky=tk.W+tk.E+tk.S)
         
@@ -608,7 +608,7 @@ class Mixer:
         
         # Update the status bar message
         if self.fill_set or free_volume < 0.1:
-            self.liquid_volume.set('Vol. %(limit).1f (container full)' % {
+            self.liquid_volume.set('Vol. %(limit).1f ml (container full)' % {
                 'limit': self._container_vol})
         else:
             self.liquid_volume.set('Vol. %(vol).1f ml (in %(limit).1f ml. container)' % {
@@ -619,7 +619,7 @@ class Mixer:
         mixture = self.get_mixture()
 
         if mixture:
-            self.mixture_description.set('%dPG / %dVG, nic. %.1f mg/ml.   |' % (
+            self.mixture_description.set('%d%% PG / %d%% VG, Nic. %.1f mg/ml.   |' % (
                 mixture.pg, mixture.vg, mixture.nic))
         else:
             self.mixture_description.set('Nothing to mix. |')
