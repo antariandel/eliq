@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 import fludo
 
 from common import (float_or_zero, round_digits, center_toplevel, CreateToolTip, YesNoDialog,
-    FloatEntryDialog, FloatValidator, BaseDialog, StringDialog)
+    FloatEntryDialog, FloatValidator, BaseDialog, StringDialog, VerticalScrolledFrame)
 
 import const
 
@@ -185,7 +185,7 @@ class Mixer:
     MixerIngredientController objects (the ingredients of the mixture).
     '''
 
-    def __init__(self, parent: tk.Widget, mixture_name: str):
+    def __init__(self, parent: tk.Widget, mixture_name: str=const.DEFAULT_MIXTURE_NAME):
         if parent is None:
             # assume that we need to be Tk root
             self.parent = None
@@ -203,29 +203,28 @@ class Mixer:
 
         self.toplevel.title('Fludo | Liquid Mixer | %s' % self.name.get())
         self.toplevel.iconbitmap('icon.ico')
-        self.toplevel.resizable(False, False)
+        self.toplevel.resizable(True, True)
+        self.toplevel.minsize(670, 200)
+        self.toplevel.grid_columnconfigure(0, weight=1)
+        self.toplevel.grid_rowconfigure(2, weight=1)
 
-        self.frame = ttk.Frame(self.toplevel)
-        self.frame.grid(row=0, column=0, sticky=tk.W+tk.E+tk.N+tk.S)
-        self.frame.grid_columnconfigure(0, minsize=150)
-        self.frame.grid_columnconfigure(1, minsize=250)
-        self.frame.grid_columnconfigure(2, minsize=90)
+        self.frame = VerticalScrolledFrame(self.toplevel)
+        self.frame.interior.grid_columnconfigure(1, weight=1)
+        self.frame.interior.grid_columnconfigure(2, minsize=80)
+        self.frame.grid(row=2, column=0, sticky=tk.EW+tk.NS)
 
-        self.labels_frame = ttk.Frame(self.frame)
-        #self.labels_frame.grid_columnconfigure(5, minsize=40)
-        #self.labels_frame.grid_columnconfigure(3, minsize=33)
+        self.labels_frame = ttk.Frame(self.toplevel)
 
         self.max_label = ttk.Label(self.labels_frame, text='Max. (ml)')
         self.max_label.grid(row=0, column=0, padx=5)
-        self.labels_frame.columnconfigure(1, minsize=57)
+        self.labels_frame.columnconfigure(1, minsize=45)
 
         self.ml_label = ttk.Label(self.labels_frame, text='Vol. (ml)')
         self.ml_label.grid(row=0, column=2, padx=5)
         self.labels_frame.columnconfigure(3, minsize=110)
 
-        self.statusbar_frame = ttk.Frame(self.frame)
-        self.frame.grid_rowconfigure(999, minsize=40)
-        self.statusbar_frame.grid(row=999, columnspan=7, sticky=tk.W+tk.E+tk.S)
+        self.statusbar_frame = ttk.Frame(self.toplevel)
+        self.statusbar_frame.grid(row=999, column=0, sticky=tk.EW)
         
         self.liquid_volume = tk.StringVar()
         self.total_label = ttk.Label(self.statusbar_frame, textvariable=self.liquid_volume)
@@ -236,12 +235,12 @@ class Mixer:
             textvariable=self.mixture_description)
         self.mixture_description_label.grid(row=0, column=0, pady=3, padx=5, sticky=tk.W)
 
-        self.start_label = ttk.Label(self.frame, text='Start by adding an ingredient.')
+        self.start_label = ttk.Label(self.frame.interior, text='Start by adding an ingredient.')
         self.start_label.grid(row=997, column=0, columnspan=7)
 
-        self.button_frame = ttk.Frame(self.frame, width=700, height=32)
+        self.button_frame = ttk.Frame(self.toplevel, height=32)
         self.button_frame.grid_propagate(False)
-        self.button_frame.grid(row=0, columnspan=7, pady=10, padx=10)
+        self.button_frame.grid(row=0, column=0, pady=10, padx=10, sticky=tk.EW)
         self.button_frame.grid_rowconfigure(0, minsize=32)
 
         self.add_button = ttk.Button(self.button_frame, text='Add Ingredient', width=20,
@@ -362,10 +361,10 @@ class Mixer:
             raise TypeError('Paremeter liquid_or_ingredient isn\'t the right type.')
         
         if not self._labels_shown:
-            self.labels_frame.grid(row=1, column=0, columnspan=7, sticky=tk.E)
+            self.labels_frame.grid(row=1, column=0, sticky=tk.E)
             self.start_label.grid_forget()
 
-        self.frame.grid_rowconfigure(self.get_ingredient_grid_row(ingredient), minsize=30)
+        self.frame.interior.grid_rowconfigure(self.get_ingredient_grid_row(ingredient), minsize=30)
         current_total_vol = sum([float_or_zero(row.ml.get()) for row in self._ingredient_list])
         remaining_vol = self._container_vol - current_total_vol
         ingredient.ml_scale.configure(to=remaining_vol)
@@ -416,7 +415,7 @@ class Mixer:
         if ingredient.fill_set:
             self.toggle_fill(ingredient)
         
-        for widget in self.frame.grid_slaves():
+        for widget in self.frame.interior.grid_slaves():
             try:
                 if widget.grid_info()['row'] == grid_row_idx:
                     widget.grid_forget()
@@ -425,7 +424,7 @@ class Mixer:
                 # Already deleted by a parent widget while iterating
                 pass
         self._ingredient_list.remove(ingredient_or_idx)
-        self.frame.grid_rowconfigure(grid_row_idx, minsize=0) # Hide row
+        self.frame.interior.grid_rowconfigure(grid_row_idx, minsize=0) # Hide row
         self.update()
 
         # Show start message if there are no rows left
@@ -653,26 +652,26 @@ class MixerIngredientController(FloatValidator):
 
         self.name = tk.StringVar()
         self.name.set(self.liquid.name)
-        self.name_label = ttk.Label(self.mixer.frame, textvariable=self.name)
+        self.name_label = ttk.Label(self.mixer.frame.interior, textvariable=self.name)
         self.name_label_ttip = CreateToolTip(self.name_label,
             '%(pg)dPG/%(vg)dVG, Nic. %(nic).1f' % {
                 'pg': self.liquid.pg,
                 'vg': self.liquid.vg,
                 'nic': self.liquid.nic })
 
-        self.ml_scale = ttk.Scale(self.mixer.frame, orient=tk.HORIZONTAL, length=250,
+        self.ml_scale = ttk.Scale(self.mixer.frame.interior, orient=tk.HORIZONTAL, length=250,
             to=mixer.get_container_volume(),
             variable=self.ml,
             command=lambda value:
-                 self._update_var_from_scale(self.ml_scale, self.ml, digits=1))
+                self.ml.set(round_digits(self.ml_scale.get(), 1)))
         self.ml_scale_ttip = CreateToolTip(self.ml_scale, 'Adjust amount')
 
         self.ml_max = tk.StringVar()
-        self.ml_max_label = ttk.Label(self.mixer.frame, textvariable=self.ml_max)
+        self.ml_max_label = ttk.Label(self.mixer.frame.interior, textvariable=self.ml_max)
         self.ml_max_label_ttip = CreateToolTip(self.ml_max_label,
             'Max possible amount\nfor the ingredient.')
 
-        self.ml_entry = ttk.Entry(self.mixer.frame, width=7, textvariable=self.ml)
+        self.ml_entry = ttk.Entry(self.mixer.frame.interior, width=7, textvariable=self.ml)
         self.ml_entry_validator = self.ml_entry.register(self.validate_float_entry) # FloatValidator
 
         # This function always returns the max volume possible for the ingredient, so that the
@@ -683,17 +682,17 @@ class MixerIngredientController(FloatValidator):
             validatecommand=(self.ml_entry_validator, '%d','%P', 'ml_entry', 0, 'get_max_ml'))
         
         # Shown instead of the scale if fill is selected for the component
-        self.fill_label = ttk.Label(self.mixer.frame, text='(will fill container)')
+        self.fill_label = ttk.Label(self.mixer.frame.interior, text='(will fill container)')
 
-        self.fill_button = ttk.Button(self.mixer.frame, text='⚪', width=3, command=lambda:
+        self.fill_button = ttk.Button(self.mixer.frame.interior, text='⚪', width=3, command=lambda:
             self.mixer.toggle_fill(self))
         self.fill_button_ttip = CreateToolTip(self.fill_button, 'Fill container')
 
-        self.edit_button = ttk.Button(self.mixer.frame, text='✎', width=3, command=lambda:
+        self.edit_button = ttk.Button(self.mixer.frame.interior, text='✎', width=3, command=lambda:
             self.show_editor_dialog())
         self.edit_button_ttip = CreateToolTip(self.edit_button, 'Edit ingredient')
 
-        self.destroy_button = ttk.Button(self.mixer.frame, text='❌', width=3, command=lambda:
+        self.destroy_button = ttk.Button(self.mixer.frame.interior, text='❌', width=3, command=lambda:
             self.show_remove_dialog())
         self.destroy_button_ttip = CreateToolTip(self.destroy_button, 'Remove ingredient')
 
@@ -702,7 +701,7 @@ class MixerIngredientController(FloatValidator):
         self.name_label.grid(
             row=grid_row_idx, column=0, padx=10, sticky=tk.E)
         self.ml_scale.grid(
-            row=grid_row_idx, column=1)
+            row=grid_row_idx, column=1, sticky=tk.EW)
         self.ml_max_label.grid(
             row=grid_row_idx, column=2, padx=17)
         self.fill_button.grid(
@@ -722,18 +721,11 @@ class MixerIngredientController(FloatValidator):
         if auto_add:
             self.mixer.add_ingredient(self)
     
-    def _update_var_from_scale(self, scale: ttk.Scale, variable: tk.Variable, digits: int=1) -> None:
-        ''' Called from a scale to limit it's bound variable to a number of precision digits '''
-
-        # TODO NTH Would be cleaner if variable was gotten from the scale rather than passed
-
-        variable.set(round_digits(scale.get(), digits))
-    
     def _unset_fill(self) -> None:
         ''' Only Mixer must call this when toggling the fill. '''
 
         self.fill_label.grid_forget()
-        self.ml_scale.grid(row=self.mixer.get_ingredient_grid_row(self), column=1)
+        self.ml_scale.grid(row=self.mixer.get_ingredient_grid_row(self), column=1, sticky=tk.EW)
         self.ml_entry.configure(state='normal')
     
         try:
