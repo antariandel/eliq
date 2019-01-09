@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import pickle
 import sqlite3
 from typing import Any

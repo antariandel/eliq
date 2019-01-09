@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import tkinter as tk
 from tkinter import ttk
 
@@ -190,11 +188,10 @@ class Mixer:
             # assume that we need to be Tk root
             self.parent = None
             self.toplevel = tk.Tk()
-            self.root = self.toplevel.nametowidget('.')
         else:
             self.parent = parent
             self.toplevel = tk.Toplevel(self.parent)
-            self.root = self.toplevel.nametowidget('.')
+        self.root = self.toplevel.nametowidget('.')
         
         self.toplevel.withdraw()
         

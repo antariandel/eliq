@@ -32,5 +32,5 @@ if __name__ == '__main__':
     if not ObjectStorage('library.db', 'recipes').get_all():
         ObjectStorage('library.db', 'recipes').store('My_Awesome_Mixture_%s' % id(ingredients), ingredients)
 
-    library = Library(parent=None)
+    library = Library()
     library.root.mainloop()

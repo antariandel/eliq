@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import platform
 import types
 from typing import Union
@@ -9,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 
 
-def float_or_zero(value) -> bool:
+def float_or_zero(value) -> float:
     try:
         return float(value)
     except ValueError:
@@ -25,11 +23,14 @@ def round_digits(value: Union[int, float], digits: int) -> float:
 
 
 class VerticalScrolledFrame(ttk.Frame):
-    """A pure Tkinter scrollable frame that actually works!
-    * Use the 'interior' attribute to place widgets inside the scrollable frame
-    * Construct and pack/place/grid normally
-    * This frame only allows vertical scrolling
-    """
+    # source: https://stackoverflow.com/questions/16188420/python-tkinter-scrollbar-for-frame
+    # Source edited to make compatible with Python 3 and added mousewheel support
+    '''
+    A pure Tkinter scrollable frame that actually works!
+        * Use the 'interior' attribute to place widgets inside the scrollable frame
+        * Can only be used with grid
+        * This frame only allows vertical scrolling
+    '''
 
     def __init__(self, parent, *args, **kw):
         ttk.Frame.__init__(self, parent, *args, **kw)
@@ -53,7 +54,7 @@ class VerticalScrolledFrame(ttk.Frame):
 
         def _bound_to_mousewheel(event):
             if platform.system() is not 'Linux':
-                canvas.bind_all("<MouseWheel>", _on_mousewheel)
+                canvas.bind_all('<MouseWheel>', _on_mousewheel)
             else:
                 canvas.bind_all('<Button-4>', _on_mousewheel)
                 canvas.bind_all('<Button-5>', _on_mousewheel)
@@ -61,7 +62,7 @@ class VerticalScrolledFrame(ttk.Frame):
 
         def _unbound_to_mousewheel(event):
             if platform.system() is not 'Linux':
-                canvas.unbind_all("<MouseWheel>")
+                canvas.unbind_all('<MouseWheel>')
             else:
                 canvas.bind_all('<Button-4>', _on_mousewheel)
                 canvas.bind_all('<Button-5>', _on_mousewheel)
@@ -69,16 +70,16 @@ class VerticalScrolledFrame(ttk.Frame):
 
         def _on_mousewheel(event):
             if platform.system() is not 'Darwin':
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                canvas.yview_scroll(int(-1*(event.delta/120)), 'units')
             else:
-                canvas.yview_scroll(int(-1*event.delta), "units")
+                canvas.yview_scroll(int(-1*event.delta), 'units')
 
         # track changes to the canvas and frame width and sync them,
         # also updating the scrollbar
         def _configure_interior(event):
             # update the scrollbars to match the size of the inner frame
             size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
-            canvas.config(scrollregion="0 0 %s %s" % size)
+            canvas.config(scrollregion='0 0 %s %s' % size)
             if interior.winfo_reqwidth() != canvas.winfo_width():
                 # update the canvas's width to fit the inner frame
                 canvas.config(width=interior.winfo_reqwidth())
