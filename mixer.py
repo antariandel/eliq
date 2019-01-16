@@ -35,6 +35,8 @@ class NewIngredientDialog(BaseDialog):
         self.vg.set('0' if not 'liquid' in kwargs else kwargs['liquid'].vg)
         self.nic = tk.StringVar()
         self.nic.set('0' if not 'liquid' in kwargs else kwargs['liquid'].nic)
+        self.cost = tk.StringVar()
+        self.cost.set('0' if not 'liquid' in kwargs else kwargs['liquid'].cost_per_ml)
 
         self.entry_validator = self.frame.register(self._validate_entries)
 
@@ -58,6 +60,11 @@ class NewIngredientDialog(BaseDialog):
         self.nic_entry = ttk.Entry(self.frame, name='nic_entry_%s' % id(self), width=25,
             textvariable=self.nic,
             validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
+        
+        self.cost_label = ttk.Label(self.frame, text='Cost/ml:')
+        self.cost_entry = ttk.Entry(self.frame, name='cost_entry_%s' % id(self), width=25,
+            textvariable=self.cost,
+            validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
 
         self.hint_label = ttk.Label(self.frame,
             text=('If PG and VG don\'t add up to 100%, the rest\n'
@@ -79,6 +86,8 @@ class NewIngredientDialog(BaseDialog):
             row=3, column=0, sticky=tk.E, padx=5, pady=5)
         self.nic_label.grid(
             row=4, column=0, sticky=tk.E, padx=5, pady=5)
+        self.cost_label.grid(
+            row=5, column=0, sticky=tk.E, padx=5, pady=5)
         
         self.name_entry.grid(
             row=1, column=1, sticky=tk.E)
@@ -88,8 +97,10 @@ class NewIngredientDialog(BaseDialog):
             row=3, column=1, sticky=tk.E)
         self.nic_entry.grid(
             row=4, column=1, sticky=tk.E)
+        self.cost_entry.grid(
+            row=5, column=1, sticky=tk.E)
         
-        self.hint_label.grid(row=5, column=0, columnspan=2, sticky=tk.N, pady=10)
+        self.hint_label.grid(row=9, column=0, columnspan=2, sticky=tk.N, pady=10)
 
         self.cancel_button.grid(row=10, column=1, padx=16, sticky=tk.E)
         self.ok_button.grid(row=10, column=0, padx=16, sticky=tk.W)
@@ -138,7 +149,7 @@ class NewIngredientDialog(BaseDialog):
             else:
                 return True # allow empty string
         
-        if 'nic_entry' in widget_name:
+        if 'nic_entry' in widget_name or 'cost_entry' in widget_name:
             if action == '-1': #focus change
                 if not value:
                     self.nic.set(0)
@@ -162,6 +173,7 @@ class NewIngredientDialog(BaseDialog):
         self.pg.set(liquid.pg)
         self.vg.set(liquid.vg)
         self.nic.set(liquid.nic)
+        self.cost.set(liquid.cost_per_ml)
     
     def close(self, ok_clicked, **kwargs):
         ''' Close and return the fludo.Liquid if ok_button is clicked. Otherwise just close. '''
@@ -171,7 +183,8 @@ class NewIngredientDialog(BaseDialog):
                 name=const.DEFAULT_INGREDIENT_NAME if not self.name.get() else self.name.get(),
                 pg=float_or_zero(self.pg.get()),
                 vg=float_or_zero(self.vg.get()),
-                nic=float_or_zero(self.nic.get())
+                nic=float_or_zero(self.nic.get()),
+                cost_per_ml=float_or_zero(self.cost.get())
             ))
         
         super().close()
@@ -265,6 +278,7 @@ class Mixer:
         self._labels_shown = False
         self._ingredient_list = []
         self._container_vol = 100 # Default to 100ml
+        self.total_cost = 0
 
         self.new_ingredient_dialog = None
         self.change_container_dialog = None
@@ -579,6 +593,7 @@ class Mixer:
         # Calc free volume within the container
         free_volume = self._container_vol - current_total_vol
 
+        new_total_cost = 0
         for ingredient in self._ingredient_list:
             # Clac ingredients possible max volume rounded to 1 digits of precision
             ingredient_max = int((float_or_zero(ingredient.ml.get()) + free_volume) * 10) / 10
@@ -601,6 +616,9 @@ class Mixer:
             # Update the volume of the liquid represented by the ingredient instance.
             # This propagates the change of the ml variable to the liquid object.
             ingredient.liquid.update_ml(float_or_zero(ingredient.ml.get()))
+            new_total_cost = ingredient.liquid.get_cost()
+        
+        self.total_cost = new_total_cost
         
         # Update the status bar message
         if self.fill_set or free_volume < 0.1:
@@ -615,8 +633,8 @@ class Mixer:
         mixture = self.get_mixture()
 
         if mixture:
-            self.mixture_description.set('%d%% PG / %d%% VG, Nic. %.1f mg/ml.   |' % (
-                mixture.pg, mixture.vg, mixture.nic))
+            self.mixture_description.set('%d%% PG / %d%% VG, Nic. %.1f mg/ml, Cost: %.1f   |' % (
+                mixture.pg, mixture.vg, mixture.nic, mixture.get_cost()))
         else:
             self.mixture_description.set('Nothing to mix. |')
 
