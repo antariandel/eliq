@@ -1,4 +1,5 @@
 import time
+import uuid
 
 import tkinter as tk
 from tkinter import ttk
@@ -23,7 +24,7 @@ class Library:
         self.root = self.toplevel.nametowidget('.')
         
         self.toplevel.withdraw()
-        self.toplevel.rowconfigure(0, weight=1)
+        self.toplevel.rowconfigure(1, weight=1)
         self.toplevel.columnconfigure(0, weight=1)
         
         self.library_db_file = library_db_file
@@ -34,23 +35,44 @@ class Library:
         self.toplevel.resizable(True, True)
         self.toplevel.minsize(530, 200)
 
+        self.button_frame = ttk.Frame(self.toplevel)
+        self.button_frame.grid(row=0, column=0, sticky=tk.EW)
+
+        self.create_button = ttk.Button(self.button_frame, text='Create New Mixture', width=20,
+            command=lambda: self.open_mixture(str(uuid.uuid4()), create_new=True))
+        self.create_button.grid(row=0, column=0)
+
+        self.modify_button = ttk.Button(self.button_frame, text='Modify Selected', width=20,
+            command=lambda: self.open_mixture(self.treeview.focus()))
+        self.modify_button.grid(row=0, column=1)
+
+        self.delete_button = ttk.Button(self.button_frame, text='Delete Selected', width=20,
+            command=lambda: self.delete_mixture(self.treeview.focus()))
+        self.delete_button.grid(row=0, column=2)
+
+        self.view_button = ttk.Button(self.button_frame, text='View Selected', width=20,
+            state=tk.DISABLED)
+        self.view_button.grid(row=0, column=3)
+
+        self.duplicate_button = ttk.Button(self.button_frame, text='Duplicate Selected', width=20,
+            state=tk.DISABLED)
+        self.duplicate_button.grid(row=0, column=4)
+
         self.treeview_frame = ttk.Frame(self.toplevel, borderwidth=5, relief=tk.RAISED)
         self.treeview_frame.columnconfigure(0, weight=1)
         self.treeview_frame.rowconfigure(0, weight=1)
-        self.treeview_frame.grid(column=0, row=0, sticky=tk.EW+tk.NS)
+        self.treeview_frame.grid(column=0, row=1, sticky=tk.EW+tk.NS)
 
         self.treeview = ttk.Treeview(self.treeview_frame, selectmode='browse')
-        self.treeview.configure(columns=('pg', 'vg', 'nic', 'ml'))
-        self.treeview.column('#0', minwidth=250, anchor=tk.W)
-        self.treeview.column('pg', minwidth=50, width=50, anchor=tk.CENTER)
-        self.treeview.column('vg', minwidth=50, width=50, anchor=tk.CENTER)
-        self.treeview.column('nic', minwidth=80, width=80, anchor=tk.CENTER)
-        self.treeview.column('ml', minwidth=70, width=70, anchor=tk.CENTER)
+        self.treeview.configure(columns=('pgvg', 'nic', 'ml'))
+        self.treeview.column('#0', width=400, anchor=tk.W)
+        self.treeview.column('pgvg', width=100, stretch=False, anchor=tk.CENTER)
+        self.treeview.column('nic',width=80, stretch=False, anchor=tk.CENTER)
+        self.treeview.column('ml', width=70, stretch=False, anchor=tk.CENTER)
         self.treeview.heading('#0', text='Name')
-        self.treeview.heading('pg', text='PG %')
-        self.treeview.heading('vg', text='VG %')
+        self.treeview.heading('pgvg', text='PG / VG %')
         self.treeview.heading('nic', text='Nic. (mg/ml)')
-        self.treeview.heading('ml', text='Vol. (ml)')
+        self.treeview.heading('ml', text='Vol.')
         self.treeview.tag_configure('ingredient', background='#E4EBF7')
         self.treeview.tag_configure('edit', background='green')
         self.treeview_vscroll = ttk.Scrollbar(self.treeview_frame, orient=tk.VERTICAL,
@@ -58,50 +80,72 @@ class Library:
         self.treeview.configure(yscrollcommand=self.treeview_vscroll.set)
         self.treeview.grid(row=0, column=0, sticky=tk.EW+tk.NS)
         self.treeview_vscroll.grid(row=0, column=1, sticky=tk.NS)
-        self.treeview.bind("<Button-3>", self.open_context_menu)
-        self.treeview.bind('<Double-1>', self.open_mixer)
-
-        self.treeview_menu = tk.Menu(self.toplevel, tearoff=0)
-        self.treeview_menu.add_command(label='Edit', command=lambda: print('Edit'))
+        self.treeview.bind('<Double-1>', self.doubleclick_wrapper)
+        self.treeview.bind('<Button-1>', self.inhibit_column_resize)
 
         self.mixtures = None
-        self.reload_tree()
+        self.opened_mixers = {}
+        self.reload_treeview()
 
         center_toplevel(self.toplevel)
     
-    def open_mixer(self, event):
+    def inhibit_column_resize(self, event):
+        if self.treeview.identify_region(event.x, event.y) == "separator":
+            return "break"
+    
+    def doubleclick_wrapper(self, event):
         item = self.treeview.identify('item', event.x, event.y)
-        
-        if item:
-            Mixer(self.toplevel).load(self.mixtures[item])
-        
+        self.open_mixture(item, False)
+
         # Return 'break' to not propagate the event to other bindings
         # This prevents expanding the item on double-click
         return 'break'
-
-    def open_context_menu(self, event):
-        item = self.treeview.identify_row(event.y)
-
-        if item:
-            self.treeview.selection_set(item)
-            self.treeview_menu.post(event.x_root, event.y_root)
     
-    def reload_tree(self) -> None:
+    def save_mixture_callback(self, mixture_dump, mixture_identifier):
+        storage = ObjectStorage(self.library_db_file, self.library_table_name)
+        storage.delete(mixture_identifier)
+        storage.store(mixture_identifier, mixture_dump)
+        self.close_mixture(mixture_identifier)
+        self.reload_treeview()
+    
+    def delete_mixture(self, mixture_identifier):
+        ObjectStorage(self.library_db_file, self.library_table_name).delete(mixture_identifier)
+        self.reload_treeview()
+    
+    def close_mixture(self, mixture_identifier):
+        self.opened_mixers[mixture_identifier].toplevel.destroy()
+        del self.opened_mixers[mixture_identifier]
+    
+    def open_mixture(self, mixture_identifier, create_new=False):
+        if mixture_identifier in self.mixtures or create_new:
+            if mixture_identifier not in self.opened_mixers:
+                self.opened_mixers[mixture_identifier] = Mixer(self.toplevel,
+                    save_callback=self.save_mixture_callback,
+                    save_callback_args=[mixture_identifier],
+                    discard_callback=self.close_mixture,
+                    discard_callback_args=[mixture_identifier])
+                if not create_new: # Load existing
+                    self.opened_mixers[mixture_identifier].load(self.mixtures[mixture_identifier])
+                self.opened_mixers[mixture_identifier].toplevel.protocol('WM_DELETE_WINDOW',
+                    lambda: self.close_mixture(mixture_identifier))
+            else:
+                self.opened_mixers[mixture_identifier].toplevel.deiconify()
+    
+    def reload_treeview(self) -> None:
         self.mixtures = ObjectStorage(self.library_db_file, self.library_table_name).get_all()
+        self.treeview.delete(*self.treeview.get_children())
 
         for mixture_key in self.mixtures:
             mixture = fludo.Mixture(*self.mixtures[mixture_key]['ingredients'])
             mx_id = self.treeview.insert('', tk.END, id=mixture_key,
                 text=self.mixtures[mixture_key]['name'],
                 values=(
-                    int(mixture.pg),
-                    int(mixture.vg),
-                    round_digits(mixture.nic, 1),
-                    round_digits(mixture.ml, 1), 'Edit', 'Del.'))
+                    '{} / {}'.format(int(mixture.pg), int(mixture.vg)),
+                    '{} mg'.format(round_digits(mixture.nic, 1)),
+                    '{} ml'.format(round_digits(mixture.ml, 1))))
             for liquid in self.mixtures[mixture_key]['ingredients']:
                 self.treeview.insert(mx_id, tk.END, text=liquid.name, tags=('ingredient'),
                     values=(
-                        int(liquid.pg),
-                        int(liquid.vg),
-                        round_digits(liquid.nic, 1),
-                        round_digits(liquid.ml, 1)))
+                        '{} / {}'.format(int(liquid.pg), int(liquid.vg)),
+                        '{} mg'.format(round_digits(liquid.nic, 1)),
+                        '{} ml'.format(round_digits(liquid.ml, 1))))

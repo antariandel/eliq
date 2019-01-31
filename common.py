@@ -255,7 +255,9 @@ class BaseDialog(ABC):
         self.ok_button = ttk.Button(self.frame, text='OK',
             command=lambda: self.close(True, **kwargs))
         self.ok_button.grid(row=10, column=0, pady=16, sticky=tk.W+tk.E)
-        self.ok_button.bind('<Return>', lambda event: self.close(True, **kwargs))
+
+        self.toplevel.bind('<Return>', lambda event: self.close(True, **kwargs))
+        self.toplevel.bind('<Escape>', lambda event: self.close(False, **kwargs))
 
         self.configure_widgets(**kwargs)
 
@@ -316,7 +318,6 @@ class FloatEntryDialog(BaseDialog, FloatValidator):
                 kwargs['min_value'], kwargs['max_value']))
         self.entry.grid(row=1, columnspan=2, pady=10)
         self.entry.focus()
-        self.entry.bind('<Return>', lambda event: self.close(True))
 
         self.ok_button.configure(text='OK')
         
@@ -342,7 +343,6 @@ class StringDialog(BaseDialog):
             validatecommand=(self._entry_validator, '%d', '%P', max_length))
         self.entry.grid(row=1, columnspan=2, pady=10)
         self.entry.focus()
-        self.entry.bind('<Return>', lambda event: self.close(True))
 
         self.ok_button.configure(text='OK')
         
