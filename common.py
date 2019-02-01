@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 import tkinter as tk
 from tkinter import ttk
 
+from icons import icons
+
 
 def float_or_zero(value) -> float:
     try:
@@ -232,7 +234,7 @@ class BaseDialog(ABC):
     ''' Abstract Base Class for dialogs. '''
 
     def __init__(self, parent: tk.Widget, callback: types.FunctionType, window_title: str,
-            text: str, destroy_on_close: bool=True, iconbitmap='icon.ico', **kwargs):
+            text: str, destroy_on_close: bool=True, iconbitmap=icons['app-icon'], **kwargs):
         self.parent = parent
 
         self.toplevel = tk.Toplevel(self.parent)

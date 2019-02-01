@@ -9,6 +9,7 @@ import fludo
 from common import center_toplevel, round_digits
 from storage import ObjectStorage
 from mixer import Mixer
+from icons import icons, set_icon
 
 
 class Library:
@@ -31,31 +32,36 @@ class Library:
         self.library_table_name = library_table_name
         
         self.toplevel.title('Fludo | Library')
-        self.toplevel.iconbitmap('icon.ico')
-        self.toplevel.resizable(True, True)
-        self.toplevel.minsize(530, 200)
+        self.toplevel.iconbitmap(icons['app-icon'])
+        self.toplevel.minsize(0, 300)
+        self.toplevel.resizable(False, True)
 
         self.button_frame = ttk.Frame(self.toplevel)
         self.button_frame.grid(row=0, column=0, sticky=tk.EW)
 
         self.create_button = ttk.Button(self.button_frame, text='Create New Mixture', width=20,
             command=lambda: self.open_mixture(str(uuid.uuid4()), create_new=True))
+        set_icon(self.create_button, icons['plus'])
         self.create_button.grid(row=0, column=0)
 
         self.modify_button = ttk.Button(self.button_frame, text='Modify Selected', width=20,
             command=lambda: self.open_mixture(self.treeview.focus()))
+        set_icon(self.modify_button, icons['edit'])
         self.modify_button.grid(row=0, column=1)
 
         self.delete_button = ttk.Button(self.button_frame, text='Delete Selected', width=20,
             command=lambda: self.delete_mixture(self.treeview.focus()))
+        set_icon(self.delete_button, icons['trash-2'])
         self.delete_button.grid(row=0, column=2)
 
         self.view_button = ttk.Button(self.button_frame, text='View Selected', width=20,
             state=tk.DISABLED)
+        set_icon(self.view_button, icons['container'])
         self.view_button.grid(row=0, column=3)
 
         self.duplicate_button = ttk.Button(self.button_frame, text='Duplicate Selected', width=20,
             state=tk.DISABLED)
+        set_icon(self.duplicate_button, icons['copy'])
         self.duplicate_button.grid(row=0, column=4)
 
         self.treeview_frame = ttk.Frame(self.toplevel, borderwidth=5, relief=tk.RAISED)
@@ -63,24 +69,29 @@ class Library:
         self.treeview_frame.rowconfigure(0, weight=1)
         self.treeview_frame.grid(column=0, row=1, sticky=tk.EW+tk.NS)
 
-        self.treeview = ttk.Treeview(self.treeview_frame, selectmode='browse')
+        style = ttk.Style()
+        style.configure("mystyle.Treeview", highlightthickness=0, border=0, font=('Calibri', 11), selectbackground='gray')
+        style.configure("mystyle.Treeview.Heading", font=('Calibri', 11,'bold'))
+        style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])
+
+        self.treeview = ttk.Treeview(self.treeview_frame, selectmode='browse', style='mystyle.Treeview')
         self.treeview.configure(columns=('pgvg', 'nic', 'ml'))
-        self.treeview.column('#0', width=400, anchor=tk.W)
-        self.treeview.column('pgvg', width=100, stretch=False, anchor=tk.CENTER)
-        self.treeview.column('nic',width=80, stretch=False, anchor=tk.CENTER)
+        self.treeview.column('#0', width=350, anchor=tk.W)
+        self.treeview.column('pgvg', width=90, stretch=False, anchor=tk.CENTER)
+        self.treeview.column('nic',width=90, stretch=False, anchor=tk.CENTER)
         self.treeview.column('ml', width=70, stretch=False, anchor=tk.CENTER)
-        self.treeview.heading('#0', text='Name')
+        self.treeview.heading('#0', text='Mixture Name')
         self.treeview.heading('pgvg', text='PG / VG %')
         self.treeview.heading('nic', text='Nic. (mg/ml)')
-        self.treeview.heading('ml', text='Vol.')
-        self.treeview.tag_configure('ingredient', background='#E4EBF7')
-        self.treeview.tag_configure('edit', background='green')
+        self.treeview.heading('ml', text='Amount')
+        self.treeview.tag_configure('ingredient', background='#ededed')
         self.treeview_vscroll = ttk.Scrollbar(self.treeview_frame, orient=tk.VERTICAL,
             command=self.treeview.yview)
         self.treeview.configure(yscrollcommand=self.treeview_vscroll.set)
         self.treeview.grid(row=0, column=0, sticky=tk.EW+tk.NS)
         self.treeview_vscroll.grid(row=0, column=1, sticky=tk.NS)
-        self.treeview.bind('<Double-1>', self.doubleclick_wrapper)
+        self.treeview.bind('<Double-1>', self.open_wrapper)
+        self.treeview.bind('<Return>', self.open_wrapper)
         self.treeview.bind('<Button-1>', self.inhibit_column_resize)
 
         self.mixtures = None
@@ -91,15 +102,8 @@ class Library:
     
     def inhibit_column_resize(self, event):
         if self.treeview.identify_region(event.x, event.y) == "separator":
-            return "break"
-    
-    def doubleclick_wrapper(self, event):
-        item = self.treeview.identify('item', event.x, event.y)
-        self.open_mixture(item, False)
-
-        # Return 'break' to not propagate the event to other bindings
-        # This prevents expanding the item on double-click
-        return 'break'
+            # Return 'break' to not propagate the event to other bindings
+            return 'break'
     
     def save_mixture_callback(self, mixture_dump, mixture_identifier):
         storage = ObjectStorage(self.library_db_file, self.library_table_name)
@@ -130,6 +134,13 @@ class Library:
                     lambda: self.close_mixture(mixture_identifier))
             else:
                 self.opened_mixers[mixture_identifier].toplevel.deiconify()
+    
+    def open_wrapper(self, event):
+        self.open_mixture(self.treeview.focus(), False)
+
+        # Return 'break' to not propagate the event to other bindings
+        # This prevents expanding the item on double-click
+        return 'break'
     
     def reload_treeview(self) -> None:
         self.mixtures = ObjectStorage(self.library_db_file, self.library_table_name).get_all()

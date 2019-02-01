@@ -8,6 +8,7 @@ import fludo
 
 from common import (float_or_zero, round_digits, center_toplevel, CreateToolTip, YesNoDialog,
     FloatEntryDialog, FloatValidator, BaseDialog, StringDialog, VerticalScrolledFrame)
+from icons import icons, set_icon
 
 import const
 
@@ -215,9 +216,9 @@ class Mixer:
         self.name.set(mixture_name)
 
         self.toplevel.title('Fludo | Liquid Mixer')
-        self.toplevel.iconbitmap('icon.ico')
+        self.toplevel.iconbitmap(icons['app-icon'])
+        self.toplevel.minsize(0, 280)
         self.toplevel.resizable(False, True)
-        self.toplevel.minsize(710, 280)
         self.toplevel.grid_columnconfigure(0, weight=1)
         self.toplevel.grid_rowconfigure(3, weight=1)
 
@@ -265,9 +266,10 @@ class Mixer:
             text='Add some ingredients to your mixture:')
         self.start_label.grid(row=998, column=0, columnspan=6, sticky=tk.E)
 
-        self.add_button = ttk.Button(self.frame.interior, text='➕', width=4,
+        self.add_button = ttk.Button(self.frame.interior, text='', width=4,
             command=self.show_add_ingredient_dialog)
         self.add_button_ttip = CreateToolTip(self.add_button, 'Add new ingredient to the mixture.')
+        set_icon(self.add_button, icons['plus'], compound=tk.NONE)
         self.add_button.grid(row=998, column=6, padx=14, pady=3)
         self.toplevel.bind('<Shift-A>', lambda event: self.show_add_ingredient_dialog())
         self.toplevel.bind('<Shift-a>', lambda event: self.show_add_ingredient_dialog())
@@ -279,22 +281,27 @@ class Mixer:
             width=22, command=self.show_change_container_dialog)
         self.change_container_button_ttip = CreateToolTip(self.change_container_button,
             'Resize the container preserving ingredient proportions.')
+        set_icon(self.change_container_button, icons['resize_container'])
         self.change_container_button.grid(row=0, column=0)
 
         self.view_container_button = ttk.Button(self.button_frame, text='View Container', width=22,
             state=tk.DISABLED)
+        set_icon(self.view_container_button, icons['container'])
         self.view_container_button.grid(row=0, column=1)
         
         self.add_notes_button = ttk.Button(self.button_frame, text='Add Notes', width=22,
             state=tk.DISABLED)
+        set_icon(self.add_notes_button, icons['file'])
         self.add_notes_button.grid(row=0, column=2)
 
         self.save_button = ttk.Button(self.button_frame, text='Save & Close', width=22,
             command=lambda: self.close(True))
+        set_icon(self.save_button, icons['save'])
         self.save_button.grid(row=0, column=3)
 
         self.discard_button = ttk.Button(self.button_frame, text='Discard & Close', width=22,
             command=lambda: self.close(False))
+        set_icon(self.discard_button, icons['x-square'])
         self.discard_button.grid(row=0, column=4)
  
         self.fill_set = False
@@ -739,16 +746,19 @@ class MixerIngredientController(FloatValidator):
         # Shown instead of the scale if fill is selected for the component
         self.fill_label = ttk.Label(self.mixer.frame.interior, text='(will fill container)')
 
-        self.fill_button = ttk.Button(self.mixer.frame.interior, text='⚪', width=3,
+        self.fill_button = ttk.Button(self.mixer.frame.interior, width=32,
             command=lambda: self.mixer.toggle_fill(self))
+        set_icon(self.fill_button, icons['container-fill'], compound=tk.NONE)
         self.fill_button_ttip = CreateToolTip(self.fill_button, 'Fill container')
 
-        self.edit_button = ttk.Button(self.mixer.frame.interior, text='✎', width=3,
+        self.edit_button = ttk.Button(self.mixer.frame.interior, width=32,
             command=lambda: self.show_editor_dialog())
+        set_icon(self.edit_button, icons['edit-2'], compound=tk.NONE)
         self.edit_button_ttip = CreateToolTip(self.edit_button, 'Edit ingredient')
 
-        self.destroy_button = ttk.Button(self.mixer.frame.interior, text='❌', width=4,
+        self.destroy_button = ttk.Button(self.mixer.frame.interior, width=4,
             command=lambda: self.show_remove_dialog())
+        set_icon(self.destroy_button, icons['minus'], compound=tk.NONE)
         self.destroy_button_ttip = CreateToolTip(self.destroy_button, 'Remove ingredient')
 
         grid_row_idx = self.mixer.get_last_grid_row() # Grid row number within Mixer frame
@@ -797,7 +807,7 @@ class MixerIngredientController(FloatValidator):
                 self.mixer.update(self))
         
         self.mixer.update(self)
-        self.fill_button.configure(text='⚪')
+        set_icon(self.fill_button, icons['container-fill'], compound=tk.NONE)
         self.fill_set = False
 
     def _set_fill(self) -> None:
@@ -824,7 +834,7 @@ class MixerIngredientController(FloatValidator):
                 ))
         
         self.mixer.update(self)
-        self.fill_button.configure(text='⚫')
+        set_icon(self.fill_button, icons['container-filled'], compound=tk.NONE)
         self.fill_set = True
 
     def show_editor_dialog(self) -> None:
