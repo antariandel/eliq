@@ -2,9 +2,7 @@ import os
 
 import tkinter as tk
 
-def set_icon(widget, icon_path, compound=tk.LEFT):
-    widget.image = tk.PhotoImage(file=icon_path)
-    widget.configure(compound=compound, image=widget.image)
+# This script is a quick and dirty way to load all icons from the directories 
 
 icon_directories = [
     'feather-icons',
@@ -12,6 +10,10 @@ icon_directories = [
 ]
 
 icons = {}
+
+def set_icon(widget, icon_path, compound=tk.LEFT):
+    widget.image = tk.PhotoImage(file=icon_path)
+    widget.configure(compound=compound, image=widget.image)
 
 for directory in icon_directories:
     for icon_file in os.listdir(directory):

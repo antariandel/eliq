@@ -7,7 +7,7 @@ from typing import List, Optional, Union
 import fludo
 
 from common import (float_or_zero, round_digits, center_toplevel, CreateToolTip, YesNoDialog,
-    FloatEntryDialog, FloatValidator, BaseDialog, StringDialog, VerticalScrolledFrame)
+    FloatEntryDialog, FloatValidator, BaseDialog, StringDialog, VerticalScrolledFrame, TextDialog)
 from icons import icons, set_icon
 
 import const
@@ -17,8 +17,11 @@ const.CONTAINER_MAX = 10000
 const.MAX_INGREDIENTS = 20
 # TODO Limit the max number of ingredients allowed when adding, by disabling the Add button.
 const.MAX_MIXTURE_NAME_LENGTH = 30
+#const.MAX_NOTES_LENGTH = 2000
+const.MAX_NIC_CONCENTRATION = 1000
 const.DEFAULT_MIXTURE_NAME = 'My Mixture'
 const.DEFAULT_INGREDIENT_NAME = 'Unnamed Ingredient'
+const.DEFAULT_NOTES_CONTENT = 'No notes added yet.'
 
 class NewIngredientDialog(BaseDialog):
     '''
@@ -32,12 +35,16 @@ class NewIngredientDialog(BaseDialog):
 
         self.pg = tk.StringVar()
         self.pg.set('0' if not 'liquid' in kwargs else kwargs['liquid'].pg)
+        self.pg.trace_add('write', self._recalc_water)
         self.vg = tk.StringVar()
         self.vg.set('0' if not 'liquid' in kwargs else kwargs['liquid'].vg)
+        self.vg.trace_add('write', self._recalc_water)
         self.nic = tk.StringVar()
         self.nic.set('0' if not 'liquid' in kwargs else kwargs['liquid'].nic)
         self.cost = tk.StringVar()
         self.cost.set('0' if not 'liquid' in kwargs else kwargs['liquid'].cost_per_ml)
+        self.water = tk.StringVar()
+        self.water.set('0' if not 'liquid' in kwargs else 100 - (kwargs['liquid'].pg + kwargs['liquid'].vg))
 
         self.entry_validator = self.frame.register(self._validate_entries)
 
@@ -57,6 +64,9 @@ class NewIngredientDialog(BaseDialog):
             textvariable=self.vg,
             validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
         
+        self.water_label = ttk.Label(self.frame, text='Water (% vol.):')
+        self.water_value = ttk.Label(self.frame, textvariable=self.water)
+        
         self.nic_label = ttk.Label(self.frame, text='Nicotine (mg/ml):')
         self.nic_entry = ttk.Entry(self.frame, name='nic_entry_%s' % id(self), width=25,
             textvariable=self.nic,
@@ -66,14 +76,10 @@ class NewIngredientDialog(BaseDialog):
         self.cost_entry = ttk.Entry(self.frame, name='cost_entry_%s' % id(self), width=25,
             textvariable=self.cost,
             validate='all', validatecommand=(self.entry_validator, '%d', '%P', '%W'))
-
-        self.hint_label = ttk.Label(self.frame,
-            text=('If PG and VG don\'t add up to 100%, the rest\n'
-                  'is considered water. Use 0PG/0VG to add pure\n'
-                  'water. Use 0 nic. mg/ml for nic-free bases,\n'
-                  'aromas and water.'))# You can turn this hint off in\n'
-                 #'the settings.\n'))
-        # TODO Make setting to turn this off
+        
+        self.allow_water = tk.IntVar()
+        self.allow_water_checkbox = ttk.Checkbutton(self.frame, text='Allow Water',
+            variable=self.allow_water, command=self._water_fix)
 
         self.ok_button.configure(text=str(kwargs['button_text']), width=15)
         self.cancel_button = ttk.Button(self.frame, text='Cancel', width=15,
@@ -85,10 +91,12 @@ class NewIngredientDialog(BaseDialog):
             row=2, column=0, sticky=tk.E, padx=5, pady=5)
         self.vg_label.grid(
             row=3, column=0, sticky=tk.E, padx=5, pady=5)
-        self.nic_label.grid(
+        self.water_label.grid(
             row=4, column=0, sticky=tk.E, padx=5, pady=5)
-        self.cost_label.grid(
+        self.nic_label.grid(
             row=5, column=0, sticky=tk.E, padx=5, pady=5)
+        self.cost_label.grid(
+            row=6, column=0, sticky=tk.E, padx=5, pady=5)
         
         self.name_entry.grid(
             row=1, column=1, sticky=tk.E)
@@ -96,17 +104,26 @@ class NewIngredientDialog(BaseDialog):
             row=2, column=1, sticky=tk.E)
         self.vg_entry.grid(
             row=3, column=1, sticky=tk.E)
+        self.water_value.grid(
+            row=4, column=1, sticky=tk.W)
         self.nic_entry.grid(
-            row=4, column=1, sticky=tk.E)
-        self.cost_entry.grid(
             row=5, column=1, sticky=tk.E)
-        
-        self.hint_label.grid(row=9, column=0, columnspan=2, sticky=tk.N, pady=10)
+        self.cost_entry.grid(
+            row=6, column=1, sticky=tk.E)
+        self.allow_water_checkbox.grid(
+            row=7, column=1, sticky=tk.W)
 
         self.cancel_button.grid(row=10, column=1, padx=16, sticky=tk.E)
         self.ok_button.grid(row=10, column=0, padx=16, sticky=tk.W)
 
         center_toplevel(self.toplevel)
+    
+    def _recalc_water(self, *args):
+        self.water.set(100 - (float_or_zero(self.pg.get()) + float_or_zero(self.vg.get())))
+    
+    def _water_fix(self):
+        if not self.allow_water.get():
+            self.vg.set(100-float_or_zero(self.pg.get()))
     
     def _validate_entries(self, action, value, widget_name):
         ''' Validator for all entry fields. '''
@@ -123,18 +140,28 @@ class NewIngredientDialog(BaseDialog):
                 return False
         
         if 'pg_entry' in widget_name:
-            if (float_or_zero(value) + float_or_zero(self.vg.get())) > 100 or \
-               float_or_zero(value) < 0:
+            if float_or_zero(value) > 100:
                 return False
+            
+            if not self.allow_water.get():
+                self.vg.set(100-float_or_zero(value))
+                return True
+            elif (float_or_zero(value) + float_or_zero(self.vg.get())) > 100:
+                self.vg.set(100-float_or_zero(value))
             
             if action == '-1': #focus change
                 if not value:
                     self.pg.set(0)
         
         if 'vg_entry' in widget_name:
-            if (float_or_zero(value) + float_or_zero(self.pg.get())) > 100 or \
-               float_or_zero(value) < 0:
+            if float_or_zero(value) > 100:
                 return False
+            
+            if not self.allow_water.get():
+                self.pg.set(100-float_or_zero(value))
+                return True
+            elif (float_or_zero(value) + float_or_zero(self.pg.get())) > 100:
+                self.pg.set(100-float_or_zero(value))
             
             if action == '-1': #focus change
                 if not value:
@@ -158,7 +185,7 @@ class NewIngredientDialog(BaseDialog):
             if value:
                 try:
                     float(value)
-                    if float(value) < 0:
+                    if float(value) < 0 or float(value) > const.MAX_NIC_CONCENTRATION:
                         return False
                     else:
                         return True
@@ -290,7 +317,7 @@ class Mixer:
         self.view_container_button.grid(row=0, column=1)
         
         self.add_notes_button = ttk.Button(self.button_frame, text='Add Notes', width=22,
-            state=tk.DISABLED)
+            command=self.show_add_notes_dialog)
         set_icon(self.add_notes_button, icons['file'])
         self.add_notes_button.grid(row=0, column=2)
 
@@ -300,7 +327,7 @@ class Mixer:
         self.save_button.grid(row=0, column=3)
 
         self.discard_button = ttk.Button(self.button_frame, text='Discard & Close', width=22,
-            command=lambda: self.close(False))
+            command=self.show_discard_dialog)
         set_icon(self.discard_button, icons['x-square'])
         self.discard_button.grid(row=0, column=4)
  
@@ -310,6 +337,7 @@ class Mixer:
         self._ingredient_list = []
         self._container_vol = 100 # Default to 100ml
         self.total_cost = 0
+        self.notes = const.DEFAULT_NOTES_CONTENT
         self.save_callback = save_callback
         self.save_callback_args = save_callback_args
         self.discard_callback = discard_callback
@@ -317,6 +345,8 @@ class Mixer:
 
         self.new_ingredient_dialog = None
         self.change_container_dialog = None
+        self.add_notes_dialog = None
+        self.discard_dialog = None
 
         center_toplevel(self.toplevel)
         self.toplevel.lift()
@@ -374,13 +404,53 @@ class Mixer:
             self.change_container_dialog = FloatEntryDialog(self.toplevel,
                 window_title='Change Container Size',
                 text=('Enter new size in milliliters below.\n'
-                      'Minimum size is 10 ml, max. is 10,000 ml.'),
+                      'Minimum size is {} ml, max. is {} ml.').format(const.CONTAINER_MIN,
+                        const.CONTAINER_MAX),
                 min_value=const.CONTAINER_MIN, max_value=const.CONTAINER_MAX,
                 default_value=self._container_vol,
                 callback=self.set_container_volume,
                 destroy_on_close=False)
         self.change_container_dialog.toplevel.deiconify()
         self.change_container_dialog.entry.focus()
+        self.change_container_dialog.entry.select_range(0, tk.END)
+    
+    def set_notes(self, notes: str) -> None:
+        self.notes = notes
+    
+    def get_notes(self) -> str:
+        return self.notes
+    
+    def show_add_notes_dialog(self) -> None:
+        ''' Opens a dialog that lets the user add some notes to their mixture. '''
+
+        if self.add_notes_dialog is None:
+            self.add_notes_dialog = TextDialog(self.toplevel,
+                window_title='Fludo | Add Notes | {}'.format(self.name.get()),
+                text='Add your notes below:',
+                text_content=self.get_notes(),
+                default_value=const.DEFAULT_NOTES_CONTENT,
+                callback=self.set_notes,
+                destroy_on_close=False)
+            self.add_notes_dialog.ok_button.configure(text='Save & Close')
+        if self.get_notes():
+            self.add_notes_dialog.text.delete('0.0', tk.END)
+            self.add_notes_dialog.text.insert('0.0', self.get_notes())
+        self.add_notes_dialog.toplevel.deiconify()
+    
+    def show_discard_dialog(self) -> None:
+        ''' Asks the user one more time if they want to discard the mixture. '''
+
+        def close_if_ok_clicked(ok_clicked):
+            if ok_clicked:
+                self.close(False)
+
+        if self.discard_dialog is None:
+            self.discard_dialog = YesNoDialog(self.toplevel,
+                window_title='Are you sure?',
+                text='Are you sure you wish to discard your edits to\n{}?'.format(self.name.get()),
+                callback=close_if_ok_clicked,
+                destroy_on_close=False)
+        self.discard_dialog.toplevel.deiconify()
     
     def rename(self, new_name) -> None:
         if len(new_name) < const.MAX_MIXTURE_NAME_LENGTH:
@@ -429,8 +499,8 @@ class Mixer:
                 text='Fill in the ingredient\'s properties below:')
         self.new_ingredient_dialog.toplevel.deiconify()
         self.new_ingredient_dialog.name.set(const.DEFAULT_INGREDIENT_NAME)
-        self.new_ingredient_dialog.pg.set(0)
-        self.new_ingredient_dialog.vg.set(0)
+        self.new_ingredient_dialog.pg.set(50)
+        self.new_ingredient_dialog.vg.set(50)
         self.new_ingredient_dialog.nic.set(0)
         self.new_ingredient_dialog.name_entry.focus()
     
@@ -551,6 +621,7 @@ class Mixer:
         loadable_dict = {
             'ingredients': [fludo.Liquid, ...],
             'name': str,
+            'notes': str,
             'filler_idx': Optional[int],
             'container_vol': int,
         }
@@ -594,6 +665,11 @@ class Mixer:
         else:
             self.rename(const.DEFAULT_MIXTURE_NAME)
         
+        if 'notes' in loadable_dict:
+            self.set_notes(loadable_dict['notes'])
+        else:
+            self.set_notes(const.DEFAULT_NOTES_CONTENT)
+        
         self.update()
         center_toplevel(self.toplevel)
     
@@ -607,7 +683,8 @@ class Mixer:
             'ingredients': [ingredient.get_liquid() for ingredient in self._ingredient_list],
             'container_vol': self.get_container_volume(),
             'filler_idx': self.get_filler_idx(),
-            'name': self.name.get()
+            'name': self.name.get(),
+            'notes': self.get_notes()
         }
     
     def update(self, skip_limiting_ingredient: Optional['MixerIngredientController']=None) -> None:

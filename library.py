@@ -6,7 +6,7 @@ from tkinter import ttk
 
 import fludo
 
-from common import center_toplevel, round_digits
+from common import center_toplevel, round_digits, YesNoDialog
 from storage import ObjectStorage
 from mixer import Mixer
 from icons import icons, set_icon
@@ -49,10 +49,10 @@ class Library:
         set_icon(self.modify_button, icons['edit'])
         self.modify_button.grid(row=0, column=1)
 
-        self.delete_button = ttk.Button(self.button_frame, text='Delete Selected', width=20,
-            command=lambda: self.delete_mixture(self.treeview.focus()))
-        set_icon(self.delete_button, icons['trash-2'])
-        self.delete_button.grid(row=0, column=2)
+        self.destroy_button = ttk.Button(self.button_frame, text='Delete Selected', width=20,
+            command=lambda: self.show_remove_dialog(self.treeview.focus()))
+        set_icon(self.destroy_button, icons['trash-2'])
+        self.destroy_button.grid(row=0, column=2)
 
         self.view_button = ttk.Button(self.button_frame, text='View Selected', width=20,
             state=tk.DISABLED)
@@ -60,7 +60,7 @@ class Library:
         self.view_button.grid(row=0, column=3)
 
         self.duplicate_button = ttk.Button(self.button_frame, text='Duplicate Selected', width=20,
-            state=tk.DISABLED)
+            command=lambda: self.duplicate_mixture(self.treeview.focus()))
         set_icon(self.duplicate_button, icons['copy'])
         self.duplicate_button.grid(row=0, column=4)
 
@@ -70,11 +70,12 @@ class Library:
         self.treeview_frame.grid(column=0, row=1, sticky=tk.EW+tk.NS)
 
         style = ttk.Style()
-        style.configure("mystyle.Treeview", highlightthickness=0, border=0, font=('Calibri', 11), selectbackground='gray')
-        style.configure("mystyle.Treeview.Heading", font=('Calibri', 11,'bold'))
-        style.layout("mystyle.Treeview", [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])
+        style.configure('mystyle.Treeview', highlightthickness=0, border=0, font=('Calibri', 11))
+        style.configure('mystyle.Treeview.Heading', font=('Calibri', 11,'bold'))
+        style.layout('mystyle.Treeview', [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])
 
-        self.treeview = ttk.Treeview(self.treeview_frame, selectmode='browse', style='mystyle.Treeview')
+        self.treeview = ttk.Treeview(self.treeview_frame, selectmode='browse',
+            style='mystyle.Treeview')
         self.treeview.configure(columns=('pgvg', 'nic', 'ml'))
         self.treeview.column('#0', width=350, anchor=tk.W)
         self.treeview.column('pgvg', width=90, stretch=False, anchor=tk.CENTER)
@@ -93,6 +94,7 @@ class Library:
         self.treeview.bind('<Double-1>', self.open_wrapper)
         self.treeview.bind('<Return>', self.open_wrapper)
         self.treeview.bind('<Button-1>', self.inhibit_column_resize)
+        self.treeview.bind('<Delete>', lambda event: self.show_remove_dialog(self.treeview.focus()))
 
         self.mixtures = None
         self.opened_mixers = {}
@@ -101,19 +103,44 @@ class Library:
         center_toplevel(self.toplevel)
     
     def inhibit_column_resize(self, event):
-        if self.treeview.identify_region(event.x, event.y) == "separator":
+        if self.treeview.identify_region(event.x, event.y) == 'separator':
             # Return 'break' to not propagate the event to other bindings
             return 'break'
     
-    def save_mixture_callback(self, mixture_dump, mixture_identifier):
+    def save_mixture_callback(self, mixture_dict, mixture_identifier):
         storage = ObjectStorage(self.library_db_file, self.library_table_name)
         storage.delete(mixture_identifier)
-        storage.store(mixture_identifier, mixture_dump)
+        storage.store(mixture_identifier, mixture_dict)
         self.close_mixture(mixture_identifier)
         self.reload_treeview()
     
+    def show_remove_dialog(self, mixture_identifier) -> None:
+        ''' Asks the user if they are sure to remove the mixture from the Library. '''
+
+        remove_dialog = YesNoDialog(self.toplevel,
+            callback=lambda ok_clicked, mixture_identifier:
+                self.delete_mixture(mixture_identifier if ok_clicked else None),
+            mixture_identifier=mixture_identifier,
+            window_title='Remove Ingredient',
+            text='',
+            destroy_on_close=False)
+        remove_dialog.label.configure(
+            text=('Are you sure you wish to remove\n'
+                    '%(name)s?') % {
+            'name': self.mixtures[mixture_identifier]['name'] })
+        remove_dialog.ok_button.focus()
+        remove_dialog.toplevel.deiconify()
+
     def delete_mixture(self, mixture_identifier):
-        ObjectStorage(self.library_db_file, self.library_table_name).delete(mixture_identifier)
+        if mixture_identifier is not None:
+            ObjectStorage(self.library_db_file, self.library_table_name).delete(mixture_identifier)
+            self.reload_treeview()
+    
+    def duplicate_mixture(self, mixture_identifier):
+        storage = ObjectStorage(self.library_db_file, self.library_table_name)
+        mixture_dict = self.mixtures[mixture_identifier]
+        mixture_dict['name'] = 'Copy of {}'.format(mixture_dict['name'])
+        storage.store(str(uuid.uuid4()), mixture_dict)
         self.reload_treeview()
     
     def close_mixture(self, mixture_identifier):
@@ -146,15 +173,15 @@ class Library:
         self.mixtures = ObjectStorage(self.library_db_file, self.library_table_name).get_all()
         self.treeview.delete(*self.treeview.get_children())
 
-        for mixture_key in self.mixtures:
-            mixture = fludo.Mixture(*self.mixtures[mixture_key]['ingredients'])
-            mx_id = self.treeview.insert('', tk.END, id=mixture_key,
-                text=self.mixtures[mixture_key]['name'],
+        for mixture_identifier in self.mixtures:
+            mixture = fludo.Mixture(*self.mixtures[mixture_identifier]['ingredients'])
+            mx_id = self.treeview.insert('', tk.END, id=mixture_identifier,
+                text=self.mixtures[mixture_identifier]['name'],
                 values=(
                     '{} / {}'.format(int(mixture.pg), int(mixture.vg)),
                     '{} mg'.format(round_digits(mixture.nic, 1)),
                     '{} ml'.format(round_digits(mixture.ml, 1))))
-            for liquid in self.mixtures[mixture_key]['ingredients']:
+            for liquid in self.mixtures[mixture_identifier]['ingredients']:
                 self.treeview.insert(mx_id, tk.END, text=liquid.name, tags=('ingredient'),
                     values=(
                         '{} / {}'.format(int(liquid.pg), int(liquid.vg)),

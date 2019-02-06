@@ -289,9 +289,9 @@ class BaseDialog(ABC):
 
 class OkDialog(BaseDialog):
     def close(self, ok_clicked: bool, **kwargs) -> None:
-        self.callback(ok_clicked, **kwargs)
-
         super().close()
+
+        self.callback(ok_clicked, **kwargs)
 
 
 class YesNoDialog(BaseDialog):
@@ -303,9 +303,9 @@ class YesNoDialog(BaseDialog):
         self.ok_button.grid(row=10, column=0, sticky=tk.W)
 
     def close(self, ok_clicked: bool, **kwargs) -> None:
-        self.callback(ok_clicked, **kwargs)
-
         super().close()
+
+        self.callback(ok_clicked, **kwargs)
 
 
 class FloatEntryDialog(BaseDialog, FloatValidator):
@@ -328,10 +328,11 @@ class FloatEntryDialog(BaseDialog, FloatValidator):
         self.no_button.grid(row=10, column=1, sticky=tk.W+tk.E)
     
     def close(self, ok_clicked: bool, **kwargs) -> None:
+        super().close()
+
         if ok_clicked:
             self.callback(float(self.entry.get()))
-        
-        super().close()
+
 
 class StringDialog(BaseDialog):
     def configure_widgets(self, max_length=100, **kwargs):
@@ -365,10 +366,46 @@ class StringDialog(BaseDialog):
             return False
     
     def close(self, ok_clicked: bool, **kwargs) -> None:
+        super().close()
+
         if self.entry_value.get() == '':
             self.entry_value.set(self.default_value)
         
         if ok_clicked:
-            self.callback(self.entry.get())
+            self.callback(self.entry_value.get())
+
+
+class TextDialog(BaseDialog):
+    def configure_widgets(self, **kwargs):
+        self.text = tk.Text(self.frame, width=50, height=15)
+        self.text.configure(font=('Calibri', 11))
+        self.text.grid(row=1, columnspan=2, pady=10)
+        self.text.focus()
+
+        self.default_value = kwargs['default_value']
+
+        if 'text_content' in kwargs:
+            if kwargs['text_content'].strip():
+                self.text.insert('0.0', kwargs['text_content'].strip())
+            else:
+                self.text.insert('0.0', self.default_value)
+        else:
+            self.text.insert('0.0', self.default_value)
+
+        self.ok_button.configure(text='OK')
         
+        self.no_button = ttk.Button(self.frame, text='Cancel', width=10,
+            command=lambda: self.close(False))
+        self.no_button.grid(row=10, column=1, sticky=tk.W+tk.E)
+
+        self.toplevel.unbind('<Return>')
+        self.toplevel.unbind('<Escape>')
+    
+    def close(self, ok_clicked: bool, **kwargs) -> None:
         super().close()
+
+        if not self.text.get('0.0', tk.END).strip():
+            self.text.insert('0.0', self.default_value)
+        
+        if ok_clicked:
+            self.callback(self.text.get('0.0', tk.END).strip())
