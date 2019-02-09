@@ -474,7 +474,7 @@ class Mixer:
                 text='',
                 callback=close_if_ok_clicked,
                 destroy_on_close=False)
-        self.discard_dialog.label.configure(text='Are you sure you wish to close\n{}\nwithout saving it to the library?'.format(self.name.get()))
+        self.discard_dialog.label.configure(text='Are you sure you wish to close\n{}\nwithout saving?'.format(self.name.get()))
         self.discard_dialog.toplevel.deiconify()
     
     def rename(self, new_name) -> None:
