@@ -15,4 +15,5 @@ from storage import ObjectStorage
 
 if __name__ == '__main__':
     app = Library()
+    app.toplevel.protocol('WM_DELETE_WINDOW', app.close)
     app.root.mainloop()

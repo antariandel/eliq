@@ -55,11 +55,12 @@ class VerticalScrolledFrame(ttk.Frame):
         interior_id = canvas.create_window(0, 0, window=interior, anchor=tk.NW)
 
         def _bound_to_mousewheel(event):
-            if platform.system() is not 'Linux':
-                canvas.bind_all('<MouseWheel>', _on_mousewheel)
-            else:
-                canvas.bind_all('<Button-4>', _on_mousewheel)
-                canvas.bind_all('<Button-5>', _on_mousewheel)
+            if vscrollbar.get() != (0, 1):
+                if platform.system() is not 'Linux':
+                    canvas.bind_all('<MouseWheel>', _on_mousewheel)
+                else:
+                    canvas.bind_all('<Button-4>', _on_mousewheel)
+                    canvas.bind_all('<Button-5>', _on_mousewheel)
         interior.bind('<Enter>', _bound_to_mousewheel)
 
         def _unbound_to_mousewheel(event):
@@ -251,7 +252,7 @@ class BaseDialog(ABC):
         self.frame = ttk.Frame(self.toplevel)
         self.frame.grid(padx=20, pady=5)
 
-        self.label = ttk.Label(self.frame, text=text)
+        self.label = ttk.Label(self.frame, text=text, justify=tk.CENTER)
         self.label.grid(row=0, column=0, columnspan=2, pady=10)
 
         self.ok_button = ttk.Button(self.frame, text='OK',

@@ -1,5 +1,6 @@
 import time
 import uuid
+import copy
 
 import tkinter as tk
 from tkinter import ttk
@@ -9,6 +10,7 @@ import fludo
 from common import center_toplevel, round_digits, YesNoDialog
 from storage import ObjectStorage
 from mixer import Mixer
+from viewer import BottleViewer
 from images import icons, set_icon
 
 
@@ -55,7 +57,7 @@ class Library:
         self.destroy_button.grid(row=0, column=2)
 
         self.view_button = ttk.Button(self.button_frame, text='View Selected', width=20,
-            state=tk.DISABLED)
+            command=lambda: self.view_bottle(self.treeview.focus()))
         set_icon(self.view_button, icons['bottle-icon'])
         self.view_button.grid(row=0, column=3)
 
@@ -98,9 +100,31 @@ class Library:
 
         self.mixtures = None
         self.opened_mixers = {}
+        self.opened_viewers = {}
         self.reload_treeview()
 
+        self.close_dialog = None
+
         center_toplevel(self.toplevel)
+    
+    def close(self):
+        def close_if_ok_clicked(ok_clicked):
+            if ok_clicked:
+                self.toplevel.destroy()
+                
+        if self.opened_mixers:
+            if self.close_dialog is None:
+                self.close_dialog = YesNoDialog(self.toplevel,
+                    window_title='Are you sure?',
+                    text='',
+                    callback=close_if_ok_clicked,
+                    destroy_on_close=False)
+            self.close_dialog.label.configure(text=('You have mixers open.\n'
+                                                    'Are you sure you wish to close\n'
+                                                    'them all without saving?'))
+            self.close_dialog.toplevel.deiconify()
+        else:
+            self.toplevel.destroy()
     
     def inhibit_column_resize(self, event):
         if self.treeview.identify_region(event.x, event.y) == 'separator':
@@ -111,7 +135,7 @@ class Library:
         storage = ObjectStorage(self.library_db_file, self.library_table_name)
         storage.delete(mixture_identifier)
         storage.store(mixture_identifier, mixture_dict)
-        self.close_mixture(mixture_identifier)
+        self.close_window(mixture_identifier, self.opened_mixers)
         self.reload_treeview()
     
     def show_remove_dialog(self, mixture_identifier) -> None:
@@ -135,6 +159,10 @@ class Library:
         if mixture_identifier is not None:
             ObjectStorage(self.library_db_file, self.library_table_name).delete(mixture_identifier)
             self.reload_treeview()
+        if mixture_identifier in self.opened_mixers:
+            self.close_window(mixture_identifier, self.opened_mixers)
+        if mixture_identifier in self.opened_viewers:
+            self.close_window(mixture_identifier, self.opened_viewers)
     
     def duplicate_mixture(self, mixture_identifier):
         storage = ObjectStorage(self.library_db_file, self.library_table_name)
@@ -143,9 +171,9 @@ class Library:
         storage.store(str(uuid.uuid4()), mixture_dict)
         self.reload_treeview()
     
-    def close_mixture(self, mixture_identifier):
-        self.opened_mixers[mixture_identifier].toplevel.destroy()
-        del self.opened_mixers[mixture_identifier]
+    def close_window(self, window_key, opened_windows_dict):
+        opened_windows_dict[window_key].toplevel.destroy()
+        del opened_windows_dict[window_key]
     
     def open_mixture(self, mixture_identifier, create_new=False):
         if mixture_identifier in self.mixtures or create_new:
@@ -153,14 +181,35 @@ class Library:
                 self.opened_mixers[mixture_identifier] = Mixer(self.toplevel,
                     save_callback=self.save_mixture_callback,
                     save_callback_args=[mixture_identifier],
-                    discard_callback=self.close_mixture,
-                    discard_callback_args=[mixture_identifier])
+                    discard_callback=self.close_window,
+                    discard_callback_args=[mixture_identifier, self.opened_mixers])
                 if not create_new: # Load existing
-                    self.opened_mixers[mixture_identifier].load(self.mixtures[mixture_identifier])
+                    self.opened_mixers[mixture_identifier].load(
+                        copy.deepcopy(self.mixtures[mixture_identifier]))
                 self.opened_mixers[mixture_identifier].toplevel.protocol('WM_DELETE_WINDOW',
-                    lambda: self.close_mixture(mixture_identifier))
+                    self.opened_mixers[mixture_identifier].show_discard_dialog)
+                if mixture_identifier in self.opened_viewers:
+                    self.close_window(mixture_identifier, self.opened_viewers)
+                    self.opened_mixers[mixture_identifier].show_bottle_viewer()
             else:
                 self.opened_mixers[mixture_identifier].toplevel.deiconify()
+    
+    def view_bottle(self, mixture_identifier):
+        if mixture_identifier not in self.opened_mixers:
+            if mixture_identifier in self.mixtures:
+                if mixture_identifier not in self.opened_viewers:
+                    viewer = BottleViewer(self.toplevel)
+                    viewer.set_name(self.mixtures[mixture_identifier]['name'])
+                    viewer.set_bottle_size(self.mixtures[mixture_identifier]['bottle_vol'])
+                    viewer.set_ingredients(self.mixtures[mixture_identifier]['ingredients'])
+                    viewer.set_notes(self.mixtures[mixture_identifier]['notes'])
+                    self.opened_viewers[mixture_identifier] = viewer
+                    self.opened_viewers[mixture_identifier].toplevel.protocol('WM_DELETE_WINDOW',
+                        lambda: self.close_window(mixture_identifier, self.opened_viewers))
+                else:
+                    self.opened_viewers[mixture_identifier].toplevel.deiconify()
+        else:
+            self.opened_mixers[mixture_identifier].show_bottle_viewer()
     
     def open_wrapper(self, event):
         self.open_mixture(self.treeview.focus(), False)

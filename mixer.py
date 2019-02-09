@@ -9,6 +9,7 @@ import fludo
 from common import (float_or_zero, round_digits, center_toplevel, CreateToolTip, YesNoDialog,
     FloatEntryDialog, FloatValidator, BaseDialog, StringDialog, VerticalScrolledFrame, TextDialog)
 from images import icons, set_icon
+from viewer import BottleViewer
 
 import const
 
@@ -21,7 +22,7 @@ const.MAX_MIXTURE_NAME_LENGTH = 30
 const.MAX_NIC_CONCENTRATION = 1000
 const.DEFAULT_MIXTURE_NAME = 'My Mixture'
 const.DEFAULT_INGREDIENT_NAME = 'Unnamed Ingredient'
-const.DEFAULT_NOTES_CONTENT = 'No notes added yet.'
+const.DEFAULT_NOTES_CONTENT = ''
 
 class NewIngredientDialog(BaseDialog):
     '''
@@ -236,7 +237,7 @@ class Mixer:
             self.parent = parent
             self.toplevel = tk.Toplevel(self.parent)
         self.root = self.toplevel.nametowidget('.')
-        
+
         self.toplevel.withdraw()
         
         self.name = tk.StringVar()
@@ -312,7 +313,7 @@ class Mixer:
         self.change_bottle_button.grid(row=0, column=0)
 
         self.view_bottle_button = ttk.Button(self.button_frame, text='View Bottle', width=22,
-            state=tk.DISABLED)
+            command=self.show_bottle_viewer)
         set_icon(self.view_bottle_button, icons['bottle-icon'])
         self.view_bottle_button.grid(row=0, column=1)
         
@@ -347,6 +348,8 @@ class Mixer:
         self.change_bottle_dialog = None
         self.add_notes_dialog = None
         self.discard_dialog = None
+
+        self.bottle_viewer = None
 
         center_toplevel(self.toplevel)
         self.toplevel.lift()
@@ -397,6 +400,23 @@ class Mixer:
             self._bottle_vol = 10
             return 10
     
+    def show_bottle_viewer(self) -> None:
+        if self.bottle_viewer is None:
+            self.bottle_viewer = BottleViewer(self.toplevel)
+            self.bottle_viewer.set_bottle_size(self.get_bottle_volume())
+            self.bottle_viewer.set_name(self.name.get())
+            self.bottle_viewer.set_notes(self.get_notes())
+            self.bottle_viewer.set_ingredients(self.dump()['ingredients'])
+            self.bottle_viewer.toplevel.protocol('WM_DELETE_WINDOW',
+                self.close_bottle_viewer)
+        else:
+            self.bottle_viewer.toplevel.deiconify()
+    
+    def close_bottle_viewer(self) -> None:
+        if self.bottle_viewer is not None:
+            self.bottle_viewer.toplevel.destroy()
+            self.bottle_viewer = None
+    
     def show_change_bottle_dialog(self) -> None:
         ''' Opens a dialog that lets the user resize the bottle. '''
 
@@ -416,6 +436,9 @@ class Mixer:
     
     def set_notes(self, notes: str) -> None:
         self.notes = notes
+
+        if self.bottle_viewer is not None:
+            self.bottle_viewer.set_notes(notes)
     
     def get_notes(self) -> str:
         return self.notes
@@ -447,14 +470,18 @@ class Mixer:
         if self.discard_dialog is None:
             self.discard_dialog = YesNoDialog(self.toplevel,
                 window_title='Are you sure?',
-                text='Are you sure you wish to discard your edits to\n{}?'.format(self.name.get()),
+                text='',
                 callback=close_if_ok_clicked,
                 destroy_on_close=False)
+        self.discard_dialog.label.configure(text='Are you sure you wish to close\n{}\nwithout saving it to the library?'.format(self.name.get()))
         self.discard_dialog.toplevel.deiconify()
     
     def rename(self, new_name) -> None:
         if len(new_name) < const.MAX_MIXTURE_NAME_LENGTH:
             self.name.set(new_name)
+
+            if self.bottle_viewer is not None:
+                self.bottle_viewer.set_name(new_name)
         else:
             raise Exception('Name too long!')
     
@@ -750,6 +777,9 @@ class Mixer:
                 mixture.pg, mixture.vg, mixture.nic, mixture.get_cost()))
         else:
             self.mixture_description.set('Nothing to mix. |')
+        
+        if self.bottle_viewer is not None:
+            self.bottle_viewer.set_ingredients(self.dump()['ingredients'])
     
     def close(self, save: bool=False) -> None:
         '''
