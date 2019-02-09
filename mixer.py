@@ -351,8 +351,9 @@ class Mixer:
 
         self.bottle_viewer = None
 
-        center_toplevel(self.toplevel)
-        self.toplevel.lift()
+        #center_toplevel(self.toplevel)
+        #self.toplevel.lift()
+        self.toplevel.deiconify()
     
     def validate_name_entry(self, action: str, value: str) -> bool:
         # Update field to default name if unfocused when blank.
@@ -698,7 +699,7 @@ class Mixer:
             self.set_notes(const.DEFAULT_NOTES_CONTENT)
         
         self.update()
-        center_toplevel(self.toplevel)
+        #center_toplevel(self.toplevel)
     
     def dump(self) -> dict:
         '''

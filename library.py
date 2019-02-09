@@ -26,7 +26,9 @@ class Library:
             self.toplevel = tk.Toplevel(self.parent)
         self.root = self.toplevel.nametowidget('.')
         
+        self.toplevel.protocol('WM_DELETE_WINDOW', self.close)
         self.toplevel.withdraw()
+
         self.toplevel.rowconfigure(1, weight=1)
         self.toplevel.columnconfigure(0, weight=1)
         
@@ -199,10 +201,11 @@ class Library:
             if mixture_identifier in self.mixtures:
                 if mixture_identifier not in self.opened_viewers:
                     viewer = BottleViewer(self.toplevel)
-                    viewer.set_name(self.mixtures[mixture_identifier]['name'])
-                    viewer.set_bottle_size(self.mixtures[mixture_identifier]['bottle_vol'])
-                    viewer.set_ingredients(self.mixtures[mixture_identifier]['ingredients'])
-                    viewer.set_notes(self.mixtures[mixture_identifier]['notes'])
+                    mixture = copy.deepcopy(self.mixtures[mixture_identifier])
+                    viewer.set_name(mixture['name'])
+                    viewer.set_bottle_size(mixture['bottle_vol'])
+                    viewer.set_ingredients(mixture['ingredients'])
+                    viewer.set_notes(mixture['notes'])
                     self.opened_viewers[mixture_identifier] = viewer
                     self.opened_viewers[mixture_identifier].toplevel.protocol('WM_DELETE_WINDOW',
                         lambda: self.close_window(mixture_identifier, self.opened_viewers))

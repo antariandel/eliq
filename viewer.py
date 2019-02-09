@@ -132,7 +132,7 @@ class BottleViewer:
         self.ingredients.sort(key=lambda liquid: liquid.ml, reverse=False)
         self.redraw()
     
-    def save_pdf(self, ghostscript_path, pdf_file_path):
+    def export_pdf(self, ghostscript_path, pdf_file_path):
         self.canvas.update()
         self.canvas.postscript(file='temp.ps', colormode='color', fontmap='fontmap')
         environ = os.environ.copy()
@@ -171,10 +171,12 @@ class BottleViewer:
             self.canvas.coords(rectangle, (x0, y0, x1, y1))
             
             fill_color = '#%02x%02x%02x' % (
-                int((self.ingredients[index].pg + self.ingredients[index].vg)/4) +
-                    200*(1 if self.ingredients[index].nic > 0 else 0),
-                int(100 + (self.ingredients[index].pg*2)/1.5),
-                int(100 + (self.ingredients[index].pg+self.ingredients[index].vg)/1.5)
+                int(180 - 80 * (self.ingredients[index].pg+self.ingredients[index].vg)/100 +
+                    50 * (1 if self.ingredients[index].nic else 0)),
+                int(240 - self.ingredients[index].pg -
+                    110 * (1 if self.ingredients[index].nic else 0)),
+                int(240 - self.ingredients[index].vg -
+                    110 * (1 if self.ingredients[index].nic else 0))
             )
 
             self.canvas.itemconfig(rectangle,
