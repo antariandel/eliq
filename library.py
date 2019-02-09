@@ -31,7 +31,7 @@ class Library:
         self.library_db_file = library_db_file
         self.library_table_name = library_table_name
         
-        self.toplevel.title('Fludo | Library')
+        self.toplevel.title('Eliq | Library')
         self.toplevel.iconbitmap(icons['app-icon'])
         self.toplevel.minsize(0, 300)
         self.toplevel.resizable(False, True)

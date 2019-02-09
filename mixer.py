@@ -242,7 +242,7 @@ class Mixer:
         self.name = tk.StringVar()
         self.name.set(mixture_name)
 
-        self.toplevel.title('Fludo | Liquid Mixer')
+        self.toplevel.title('Eliq | Liquid Mixer')
         self.toplevel.iconbitmap(icons['app-icon'])
         self.toplevel.minsize(0, 280)
         self.toplevel.resizable(False, True)
@@ -425,7 +425,7 @@ class Mixer:
 
         if self.add_notes_dialog is None:
             self.add_notes_dialog = TextDialog(self.toplevel,
-                window_title='Fludo | Add Notes | {}'.format(self.name.get()),
+                window_title='Eliq | Add Notes | {}'.format(self.name.get()),
                 text='Add your notes below:',
                 text_content=self.get_notes(),
                 default_value=const.DEFAULT_NOTES_CONTENT,
