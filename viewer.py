@@ -6,8 +6,8 @@ from fludo import Liquid
 
 from images import icons, set_icon, graphics
 
-class MixtureViewer:
-    def __init__(self, parent: tk.Widget=None, container_size=100):
+class BottleViewer:
+    def __init__(self, parent: tk.Widget=None, bottle_size=100):
         if parent is None:
             # assume that we need to be Tk root
             self.parent = None
@@ -22,14 +22,14 @@ class MixtureViewer:
 
         self.ingredients = []
         self.ingredient_rectangles = []
-        self.container_size = container_size
+        self.bottle_size = bottle_size
 
         self.redraw()
 
         self.toplevel.bind('<Return>', self.test_randomize) # For testing
     
     def test_randomize(self, *args):
-        self.container_size = 300
+        self.bottle_size = 300
         ingredients = [Liquid(ml=999)]
         names = [
             'Funky Aroma',
@@ -50,9 +50,9 @@ class MixtureViewer:
             'Friend Zone',
         ]
 
-        while sum([liquid.ml for liquid in ingredients]) > self.container_size:
+        while sum([liquid.ml for liquid in ingredients]) > self.bottle_size:
             ingredients = []
-            for count in range(20):
+            for count in range(20): #pylint: disable=W0612
                 ingredients.append(Liquid(
                     ml=randint(10, 20),
                     nic=5 if randint(0, 5) == 0 else 0,
@@ -76,7 +76,7 @@ class MixtureViewer:
         self.ingredient_rectangles = []
 
         # Create rectangles
-        for ingredient in self.ingredients:
+        for ingredient in self.ingredients: #pylint: disable=W0612
             self.ingredient_rectangles.append(self.canvas.create_rectangle(
                 bottom_left_position,
                 (bottom_left_position[0] + width, bottom_left_position[1]),
@@ -87,7 +87,7 @@ class MixtureViewer:
         increment = 0
         for index, rectangle in enumerate(self.ingredient_rectangles[::-1]):
             x0, y0, x1, y1 = self.canvas.coords(rectangle)
-            increment = int(increment + (self.ingredients[index].ml / self.container_size) * 319)
+            increment = int(increment + (self.ingredients[index].ml / self.bottle_size) * 319)
             y1 = y0 - increment
             self.canvas.coords(rectangle, (x0, y0, x1, y1))
             

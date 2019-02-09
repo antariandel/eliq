@@ -304,17 +304,17 @@ class Mixer:
         self.button_frame = ttk.Frame(self.toplevel)
         self.button_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
 
-        self.change_container_button = ttk.Button(self.button_frame, text='Resize Container',
-            width=22, command=self.show_change_container_dialog)
-        self.change_container_button_ttip = CreateToolTip(self.change_container_button,
-            'Resize the container preserving ingredient proportions.')
-        set_icon(self.change_container_button, icons['resize_container'])
-        self.change_container_button.grid(row=0, column=0)
+        self.change_bottle_button = ttk.Button(self.button_frame, text='Resize Bottle',
+            width=22, command=self.show_change_bottle_dialog)
+        self.change_bottle_button_ttip = CreateToolTip(self.change_bottle_button,
+            'Resize the bottle preserving ingredient proportions.')
+        set_icon(self.change_bottle_button, icons['bottle-icon-resize'])
+        self.change_bottle_button.grid(row=0, column=0)
 
-        self.view_container_button = ttk.Button(self.button_frame, text='View Container', width=22,
+        self.view_bottle_button = ttk.Button(self.button_frame, text='View Bottle', width=22,
             state=tk.DISABLED)
-        set_icon(self.view_container_button, icons['container'])
-        self.view_container_button.grid(row=0, column=1)
+        set_icon(self.view_bottle_button, icons['bottle-icon'])
+        self.view_bottle_button.grid(row=0, column=1)
         
         self.add_notes_button = ttk.Button(self.button_frame, text='Add Notes', width=22,
             command=self.show_add_notes_dialog)
@@ -335,7 +335,7 @@ class Mixer:
 
         self._labels_shown = False
         self._ingredient_list = []
-        self._container_vol = 100 # Default to 100ml
+        self._bottle_vol = 100 # Default to 100ml
         self.total_cost = 0
         self.notes = const.DEFAULT_NOTES_CONTENT
         self.save_callback = save_callback
@@ -344,7 +344,7 @@ class Mixer:
         self.discard_callback_args = discard_callback_args
 
         self.new_ingredient_dialog = None
-        self.change_container_dialog = None
+        self.change_bottle_dialog = None
         self.add_notes_dialog = None
         self.discard_dialog = None
 
@@ -369,16 +369,16 @@ class Mixer:
             # Allow empty string, so we can delete the contents completely
             return True
     
-    def set_container_volume(self, ml: Union[int, float]) -> None:
-        ''' Updates the container volume (size). '''
+    def set_bottle_volume(self, ml: Union[int, float]) -> None:
+        ''' Updates the bottle volume (size). '''
 
         if ml > const.CONTAINER_MAX:
             raise Exception('Parameter ml larger than maximum allowed!')
         if ml < const.CONTAINER_MIN:
             raise Exception('Parameter ml smaller than minimum allowed!')
         
-        ratio = ml / self._container_vol
-        self._container_vol = ml
+        ratio = ml / self._bottle_vol
+        self._bottle_vol = ml
 
         # Recalc every ingredients volume to preserve ratio.
         for ingredient in self._ingredient_list:
@@ -388,31 +388,31 @@ class Mixer:
         
         self.update()
     
-    def get_container_volume(self) -> Union[int, float]:
-        ''' Returns the current volume (size) of the container in milliliters. '''
+    def get_bottle_volume(self) -> Union[int, float]:
+        ''' Returns the current volume (size) of the bottle in milliliters. '''
 
         try:
-            return self._container_vol
+            return self._bottle_vol
         except AttributeError:
-            self._container_vol = 10
+            self._bottle_vol = 10
             return 10
     
-    def show_change_container_dialog(self) -> None:
-        ''' Opens a dialog that lets the user resize the container. '''
+    def show_change_bottle_dialog(self) -> None:
+        ''' Opens a dialog that lets the user resize the bottle. '''
 
-        if self.change_container_dialog is None:
-            self.change_container_dialog = FloatEntryDialog(self.toplevel,
-                window_title='Change Container Size',
+        if self.change_bottle_dialog is None:
+            self.change_bottle_dialog = FloatEntryDialog(self.toplevel,
+                window_title='Change Bottle Size',
                 text=('Enter new size in milliliters below.\n'
                       'Minimum size is {} ml, max. is {} ml.').format(const.CONTAINER_MIN,
                         const.CONTAINER_MAX),
                 min_value=const.CONTAINER_MIN, max_value=const.CONTAINER_MAX,
-                default_value=self._container_vol,
-                callback=self.set_container_volume,
+                default_value=self._bottle_vol,
+                callback=self.set_bottle_volume,
                 destroy_on_close=False)
-        self.change_container_dialog.toplevel.deiconify()
-        self.change_container_dialog.entry.focus()
-        self.change_container_dialog.entry.select_range(0, tk.END)
+        self.change_bottle_dialog.toplevel.deiconify()
+        self.change_bottle_dialog.entry.focus()
+        self.change_bottle_dialog.entry.select_range(0, tk.END)
     
     def set_notes(self, notes: str) -> None:
         self.notes = notes
@@ -478,7 +478,7 @@ class Mixer:
 
         self.frame.interior.grid_rowconfigure(self.get_ingredient_grid_row(ingredient), minsize=30)
         current_total_vol = sum([float_or_zero(row.ml.get()) for row in self._ingredient_list])
-        remaining_vol = self._container_vol - current_total_vol
+        remaining_vol = self._bottle_vol - current_total_vol
         ingredient.ml_scale.configure(to=remaining_vol)
         ingredient.ml_max.set(remaining_vol)
 
@@ -623,7 +623,7 @@ class Mixer:
             'name': str,
             'notes': str,
             'filler_idx': Optional[int],
-            'container_vol': int,
+            'bottle_vol': int,
         }
         '''
 
@@ -632,18 +632,18 @@ class Mixer:
         
         if ('ingredients' not in loadable_dict or
             'filler_idx' not in loadable_dict or
-            'container_vol' not in loadable_dict):
-            raise Exception('ingredients, filler_idx and container_vol '
+            'bottle_vol' not in loadable_dict):
+            raise Exception('ingredients, filler_idx and bottle_vol '
                 'are expected keys in loadable_dict')
 
         ingredients_max_vol = sum([liquid.ml for liquid in loadable_dict['ingredients']])
-        if ingredients_max_vol > loadable_dict['container_vol']:
-            raise Exception('Ingredients volume exceeds container volume.')
+        if ingredients_max_vol > loadable_dict['bottle_vol']:
+            raise Exception('Ingredients volume exceeds bottle volume.')
         
-        if loadable_dict['container_vol'] < const.CONTAINER_MIN:
-            raise ValueError('Container volume is lesser than minimum allowed!')
-        if loadable_dict['container_vol'] > const.CONTAINER_MAX:
-            raise ValueError('Container volume is greater than maximum allowed!')
+        if loadable_dict['bottle_vol'] < const.CONTAINER_MIN:
+            raise ValueError('Bottle volume is lesser than minimum allowed!')
+        if loadable_dict['bottle_vol'] > const.CONTAINER_MAX:
+            raise ValueError('Bottle volume is greater than maximum allowed!')
         if len(loadable_dict['ingredients']) > const.MAX_INGREDIENTS:
             raise ValueError('Number of ingredients exceeds the maximum allowed!')
 
@@ -652,7 +652,7 @@ class Mixer:
         for ingredient in self._ingredient_list:
             self.remove_ingredient(ingredient)
         
-        self.set_container_volume(loadable_dict['container_vol'])
+        self.set_bottle_volume(loadable_dict['bottle_vol'])
 
         for liquid in loadable_dict['ingredients']:
             self.add_ingredient(liquid)
@@ -675,13 +675,13 @@ class Mixer:
     
     def dump(self) -> dict:
         '''
-        Returns all ingredients, the container volume, the filler ingredient's index and the name
+        Returns all ingredients, the bottle volume, the filler ingredient's index and the name
         of the mixture in a dict. The returned dict can be passed to Mixer.load to load it up.
         '''
 
         return {
             'ingredients': [ingredient.get_liquid() for ingredient in self._ingredient_list],
-            'container_vol': self.get_container_volume(),
+            'bottle_vol': self.get_bottle_volume(),
             'filler_idx': self.get_filler_idx(),
             'name': self.name.get(),
             'notes': self.get_notes()
@@ -703,8 +703,8 @@ class Mixer:
         current_total_vol = sum([float_or_zero(ingredient.ml.get()) \
             for ingredient in self._ingredient_list if not ingredient.fill_set])
         
-        # Calc free volume within the container
-        free_volume = self._container_vol - current_total_vol
+        # Calc free volume within the bottle
+        free_volume = self._bottle_vol - current_total_vol
 
         new_total_cost = 0
         for ingredient in self._ingredient_list:
@@ -735,13 +735,13 @@ class Mixer:
         
         # Update the status bar message
         if self.fill_set or free_volume < 0.1:
-            self.liquid_volume.set(' |  Vol. %(limit).1f ml (container full)' % {
-                'limit': self._container_vol})
+            self.liquid_volume.set(' |  Vol. %(limit).1f ml (bottle full)' % {
+                'limit': self._bottle_vol})
         else:
-            self.liquid_volume.set(' |  Vol. %(vol).1f ml (in %(limit).1f ml. container)' % {
+            self.liquid_volume.set(' |  Vol. %(vol).1f ml (in %(limit).1f ml. bottle)' % {
                 'vol': sum([float_or_zero(ingredient.ml.get()) \
                     for ingredient in self._ingredient_list]),
-                'limit': self._container_vol })
+                'limit': self._bottle_vol })
         
         mixture = self.get_mixture()
 
@@ -799,7 +799,7 @@ class MixerIngredientController(FloatValidator):
                 'nic': self.liquid.nic })
 
         self.ml_scale = ttk.Scale(self.mixer.frame.interior, orient=tk.HORIZONTAL, length=250,
-            to=mixer.get_container_volume(),
+            to=mixer.get_bottle_volume(),
             variable=self.ml,
             command=lambda value:
                 self.ml.set(round_digits(self.ml_scale.get(), 1)))
@@ -821,12 +821,12 @@ class MixerIngredientController(FloatValidator):
             validatecommand=(self.ml_entry_validator, '%d','%P', 'ml_entry', 0, 'get_max_ml'))
         
         # Shown instead of the scale if fill is selected for the component
-        self.fill_label = ttk.Label(self.mixer.frame.interior, text='(will fill container)')
+        self.fill_label = ttk.Label(self.mixer.frame.interior, text='(will fill bottle)')
 
         self.fill_button = ttk.Button(self.mixer.frame.interior, width=32,
             command=lambda: self.mixer.toggle_fill(self))
-        set_icon(self.fill_button, icons['container-fill'], compound=tk.NONE)
-        self.fill_button_ttip = CreateToolTip(self.fill_button, 'Fill container')
+        set_icon(self.fill_button, icons['bottle-icon-fill'], compound=tk.NONE)
+        self.fill_button_ttip = CreateToolTip(self.fill_button, 'Fill bottle')
 
         self.edit_button = ttk.Button(self.mixer.frame.interior, width=32,
             command=lambda: self.show_editor_dialog())
@@ -884,7 +884,7 @@ class MixerIngredientController(FloatValidator):
                 self.mixer.update(self))
         
         self.mixer.update(self)
-        set_icon(self.fill_button, icons['container-fill'], compound=tk.NONE)
+        set_icon(self.fill_button, icons['bottle-icon-fill'], compound=tk.NONE)
         self.fill_set = False
 
     def _set_fill(self) -> None:
@@ -906,12 +906,12 @@ class MixerIngredientController(FloatValidator):
         except AttributeError:
             self._fill_traceid = self.ml_max.trace('w', lambda var, idx, op:
                 self.ml.set(
-                    int( (self.mixer.get_container_volume() - sum([float_or_zero(ingr.ml.get()) \
+                    int( (self.mixer.get_bottle_volume() - sum([float_or_zero(ingr.ml.get()) \
                         for ingr in self.mixer._ingredient_list if ingr != self])) * 10 ) / 10
                 ))
         
         self.mixer.update(self)
-        set_icon(self.fill_button, icons['container-filled'], compound=tk.NONE)
+        set_icon(self.fill_button, icons['bottle-icon-filled'], compound=tk.NONE)
         self.fill_set = True
 
     def show_editor_dialog(self) -> None:

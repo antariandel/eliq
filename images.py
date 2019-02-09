@@ -2,15 +2,15 @@ import os
 
 import tkinter as tk
 
-# This script is a quick and dirty way to load all icons from the directories 
+# This script is a quick and dirty way to load all icons and graphics from directories 
 
 icon_directories = [
-    'feather-icons',
-    'fludo-icons',
+    'resources/feather',
+    'resources/icons',
 ]
 
 graphics_directories = [
-    'graphics'
+    'resources/graphics'
 ]
 
 def set_icon(widget, icon_path, compound=tk.LEFT):

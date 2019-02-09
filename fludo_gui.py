@@ -9,10 +9,10 @@ from fludo import Liquid
 
 from mixer import Mixer
 from library import Library
-from viewer import MixtureViewer
+from viewer import BottleViewer
 from storage import ObjectStorage
 
 
 if __name__ == '__main__':
-    app = MixtureViewer()
+    app = Library()
     app.root.mainloop()

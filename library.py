@@ -56,7 +56,7 @@ class Library:
 
         self.view_button = ttk.Button(self.button_frame, text='View Selected', width=20,
             state=tk.DISABLED)
-        set_icon(self.view_button, icons['container'])
+        set_icon(self.view_button, icons['bottle-icon'])
         self.view_button.grid(row=0, column=3)
 
         self.duplicate_button = ttk.Button(self.button_frame, text='Duplicate Selected', width=20,
