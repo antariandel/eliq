@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import tkinter as tk
 from tkinter import ttk
 
-from icons import icons
+from images import icons
 
 
 def float_or_zero(value) -> float:

@@ -9,7 +9,7 @@ import fludo
 from common import center_toplevel, round_digits, YesNoDialog
 from storage import ObjectStorage
 from mixer import Mixer
-from icons import icons, set_icon
+from images import icons, set_icon
 
 
 class Library:

@@ -8,7 +8,7 @@ import fludo
 
 from common import (float_or_zero, round_digits, center_toplevel, CreateToolTip, YesNoDialog,
     FloatEntryDialog, FloatValidator, BaseDialog, StringDialog, VerticalScrolledFrame, TextDialog)
-from icons import icons, set_icon
+from images import icons, set_icon
 
 import const
 
@@ -224,7 +224,7 @@ class Mixer:
     MixerIngredientController objects (the ingredients of the mixture).
     '''
 
-    def __init__(self, parent: tk.Widget, mixture_name: str=const.DEFAULT_MIXTURE_NAME,
+    def __init__(self, parent: tk.Widget=None, mixture_name: str=const.DEFAULT_MIXTURE_NAME,
         save_callback: types.FunctionType=None, save_callback_args: list=[],
         discard_callback: types.FunctionType=None, discard_callback_args: list=[]):
 
