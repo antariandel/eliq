@@ -55,8 +55,8 @@ class VerticalScrolledFrame(ttk.Frame):
         interior_id = canvas.create_window(0, 0, window=interior, anchor=tk.NW)
 
         def _bound_to_mousewheel(event):
-            if vscrollbar.get() != (0, 1):
-                if platform.system() is not 'Linux':
+            #if vscrollbar.get() != (0, 1):
+                if platform.system() != 'Linux':
                     canvas.bind_all('<MouseWheel>', _on_mousewheel)
                 else:
                     canvas.bind_all('<Button-4>', _on_mousewheel)
@@ -64,7 +64,7 @@ class VerticalScrolledFrame(ttk.Frame):
         interior.bind('<Enter>', _bound_to_mousewheel)
 
         def _unbound_to_mousewheel(event):
-            if platform.system() is not 'Linux':
+            if platform.system() != 'Linux':
                 canvas.unbind_all('<MouseWheel>')
             else:
                 canvas.bind_all('<Button-4>', _on_mousewheel)
@@ -72,7 +72,7 @@ class VerticalScrolledFrame(ttk.Frame):
         interior.bind('<Leave>', _unbound_to_mousewheel)
 
         def _on_mousewheel(event):
-            if platform.system() is not 'Darwin':
+            if platform.system() != 'Darwin':
                 canvas.yview_scroll(int(-1*(event.delta/120)), 'units')
             else:
                 canvas.yview_scroll(int(-1*event.delta), 'units')

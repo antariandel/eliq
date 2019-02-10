@@ -1,5 +1,11 @@
 __pycache__
+venv
+build
+build_venv
+dist
 playground
+bootstrap.py
 *.pyc
 *.fldb
 *.db
+*.spec

@@ -16,9 +16,7 @@ import const
 const.CONTAINER_MIN = 10
 const.CONTAINER_MAX = 10000
 const.MAX_INGREDIENTS = 20
-# TODO Limit the max number of ingredients allowed when adding, by disabling the Add button.
 const.MAX_MIXTURE_NAME_LENGTH = 30
-#const.MAX_NOTES_LENGTH = 2000
 const.MAX_NIC_CONCENTRATION = 1000
 const.DEFAULT_MIXTURE_NAME = 'My Mixture'
 const.DEFAULT_INGREDIENT_NAME = 'Unnamed Ingredient'
@@ -299,8 +297,8 @@ class Mixer:
         self.add_button_ttip = CreateToolTip(self.add_button, 'Add new ingredient to the mixture.')
         set_icon(self.add_button, icons['plus'], compound=tk.NONE)
         self.add_button.grid(row=998, column=6, padx=14, pady=3)
-        self.toplevel.bind('<Shift-A>', lambda event: self.show_add_ingredient_dialog())
-        self.toplevel.bind('<Shift-a>', lambda event: self.show_add_ingredient_dialog())
+        self.toplevel.bind('<Control-Shift-A>', lambda event: self.show_add_ingredient_dialog())
+        self.toplevel.bind('<Control-Shift-a>', lambda event: self.show_add_ingredient_dialog())
 
         self.button_frame = ttk.Frame(self.toplevel)
         self.button_frame.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
@@ -389,6 +387,9 @@ class Mixer:
             new_value = float_or_zero(ingredient.ml.get()) * ratio
             ingredient.ml_scale.configure(to=new_value+1) # dummy scale limit change
             ingredient.ml_scale.set(new_value) # so that we can update it
+        
+        if self.bottle_viewer is not None:
+            self.bottle_viewer.set_bottle_size(self.get_bottle_volume())
         
         self.update()
     
@@ -511,6 +512,11 @@ class Mixer:
         ingredient.ml_max.set(remaining_vol)
 
         self._ingredient_list.append(ingredient)
+
+        if len(self._ingredient_list) >= const.MAX_INGREDIENTS:
+            self.add_button.configure(state=tk.DISABLED)
+            self.add_button_ttip = CreateToolTip(self.add_button, 'Max number of ingredients reached.')
+
         self.update()
 
         # Hide start message
@@ -570,6 +576,11 @@ class Mixer:
                 pass
         self._ingredient_list.remove(ingredient_or_idx)
         self.frame.interior.grid_rowconfigure(grid_row_idx, minsize=0) # Hide row
+
+        if len(self._ingredient_list) < const.MAX_INGREDIENTS:
+            self.add_button.configure(state=tk.NORMAL)
+            self.add_button_ttip = CreateToolTip(self.add_button, 'Add new ingredient to the mixture.')
+
         self.update()
 
         # Show start message if there are no rows left
@@ -577,9 +588,6 @@ class Mixer:
             self.labels_frame.grid_forget()
             self.start_label.grid(row=998, column=0, columnspan=6, sticky=tk.E)
             self._labels_shown = False
-
-        # FIXME Grid row recycle, so we don't count up with grid rows indefinitely
-        # It isn't likely to cause issues any time soon, though
     
     def get_mixture(self) -> Union[fludo.Mixture, None]:
         ''' Returns a fludo.Mixture that results from mixing every ingredient. '''

@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     try:
         const.Answer = 42  # not OK, mixed-case attribute name
-    except const.ConstCaseError as exc:
+    except const.ConstCaseError as exc: #pylint: disable=no-member
         print(exc)
     else:  # test failed - no ConstCaseError exception generated
         raise RuntimeError("Mixed-case const names should't have been allowed!")
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     try:
         const.ANSWER = 17  # not OK, attempts to change defined constant
-    except const.ConstError as exc:
+    except const.ConstError as exc: #pylint: disable=no-member
         print(exc)
     else:  # test failed - no ConstError exception generated
         raise RuntimeError("Shouldn't have been able to change const attribute!")

@@ -1,4 +1,3 @@
-import time
 import uuid
 import copy
 
@@ -16,7 +15,7 @@ from images import icons, set_icon
 
 class Library:
     def __init__(self, parent: tk.Widget=None, library_db_file: str='library.db',
-        library_table_name: str='recipes'):
+            library_table_name: str = 'recipes'):
         if parent is None:
             # assume that we need to be Tk root
             self.parent = None
@@ -142,6 +141,9 @@ class Library:
     
     def show_remove_dialog(self, mixture_identifier) -> None:
         ''' Asks the user if they are sure to remove the mixture from the Library. '''
+
+        if not mixture_identifier:
+            return
 
         remove_dialog = YesNoDialog(self.toplevel,
             callback=lambda ok_clicked, mixture_identifier:

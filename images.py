@@ -6,19 +6,19 @@ import tkinter as tk
 # This script is a quick and dirty way to load all icons and graphics from directories 
 
 icon_directories = [
-    'resources/feather',
-    'resources/icons',
+    'res/feather',
+    'res/icons',
 ]
 
 graphics_directories = [
-    'resources/graphics'
+    'res/graphics'
 ]
 
 def resource_path(relative_path):
     ''' Get absolute path to resource, works for dev and for PyInstaller '''
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
+        base_path = sys._MEIPASS #pylint: disable=no-member
     except Exception:
         base_path = os.path.abspath('.')
 

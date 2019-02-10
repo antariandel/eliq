@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk
 
 import platform
-import subprocess
 import os
 from random import randint
 from typing import List
@@ -57,8 +56,8 @@ class BottleViewer:
         self.toplevel.deiconify()
 
         def _bound_to_mousewheel(event):
-            if self.scrollbar.get() != (0, 1):
-                if platform.system() is not 'Linux':
+            #if self.scrollbar.get() != (0, 1):
+                if platform.system() != 'Linux':
                     self.canvas.bind_all('<MouseWheel>', _on_mousewheel)
                 else:
                     self.canvas.bind_all('<Button-4>', _on_mousewheel)
@@ -66,7 +65,7 @@ class BottleViewer:
         self.canvas.bind('<Enter>', _bound_to_mousewheel)
 
         def _unbound_to_mousewheel(event):
-            if platform.system() is not 'Linux':
+            if platform.system() != 'Linux':
                 self.canvas.unbind_all('<MouseWheel>')
             else:
                 self.canvas.bind_all('<Button-4>', _on_mousewheel)
@@ -74,45 +73,10 @@ class BottleViewer:
         self.canvas.bind('<Leave>', _unbound_to_mousewheel)
 
         def _on_mousewheel(event):
-            if platform.system() is not 'Darwin':
+            if platform.system() != 'Darwin':
                 self.canvas.yview_scroll(int(-1*(event.delta/120)), 'units')
             else:
                 self.canvas.yview_scroll(int(-1*event.delta), 'units')
-    
-    def test_randomize(self, *args):
-        self.bottle_size = 300
-        ingredients = [Liquid(ml=999)]
-        names = [
-            'Funky Aroma',
-            'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOP',
-            'Funkety Funk',
-            'Punk 77',
-            'Aro Maro',
-            'Base 56',
-            'Route 69',
-            'Awesomest Liquid',
-            'Nico Boost 2000',
-            'Eco Nico',
-            'Mix THIS',
-            'Flavour Bester',
-            'Basis Evo',
-            'The Base',
-            'Basey Nicey',
-            'Bestest',
-            'Friend Zone',
-        ]
-
-        while sum([liquid.ml for liquid in ingredients]) > self.bottle_size:
-            ingredients = []
-            num_ingrediens = 20
-            for count in range(num_ingrediens): #pylint: disable=W0612
-                ingredients.append(Liquid(
-                    ml=randint(int(self.bottle_size/num_ingrediens)-5, int(self.bottle_size/num_ingrediens)+5),
-                    nic=5 if randint(0, 5) == 0 else 0,
-                    pg=randint(0, 100),
-                    name=names[randint(0, 15)]
-                ))
-        self.set_ingredients(ingredients)
     
     def set_name(self, name):
         self.name = name
@@ -131,15 +95,6 @@ class BottleViewer:
         self.ingredients = ingredients
         self.ingredients.sort(key=lambda liquid: liquid.ml, reverse=False)
         self.redraw()
-    
-    def export_pdf(self, ghostscript_path, pdf_file_path):
-        self.canvas.update()
-        self.canvas.postscript(file='temp.ps', colormode='color', fontmap='fontmap')
-        environ = os.environ.copy()
-        environ['PATH'] = '{0}/bin;{0}/lib;'.format(ghostscript_path) + environ['PATH']
-        subprocess.call(['ps2pdf', 'temp.ps', pdf_file_path], shell=True,
-            env=environ)
-        os.remove('temp.ps')
     
     def redraw(self):
         self.canvas.delete(tk.ALL)
