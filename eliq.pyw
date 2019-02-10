@@ -5,6 +5,5 @@
 
 from library import Library
 
-if __name__ == '__main__':
-    app = Library()
-    app.root.mainloop()
+app = Library()
+app.root.mainloop()
