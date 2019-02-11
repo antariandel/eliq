@@ -2,9 +2,16 @@
 
 # Put in const.py...
 # from http://code.activestate.com/recipes/65207-constants-in-python
+
+import sys
+
+
 class _const:
-    class ConstError(TypeError): pass  # base exception class
-    class ConstCaseError(ConstError): pass
+    class ConstError(TypeError):
+        pass  # base exception class
+
+    class ConstCaseError(ConstError):
+        pass
 
     def __setattr__(self, name, value):
         if name in self.__dict__:
@@ -18,11 +25,11 @@ class _const:
         if name in self.__dict__:
             raise self.ConstError('Can\'t delete const.%s!' % name)
 
+
 # replace module entry in sys.modules[__name__] with instance of _const
 # (and create additional reference to module so it's not deleted --
 # see Stack Overflow question: http://bit.ly/ff94g6)
 
-import sys
 _ref, sys.modules[__name__] = sys.modules[__name__], _const()
 
 if __name__ == '__main__':
@@ -30,7 +37,7 @@ if __name__ == '__main__':
 
     try:
         const.Answer = 42  # not OK, mixed-case attribute name
-    except const.ConstCaseError as exc: #pylint: disable=no-member
+    except const.ConstCaseError as exc:  # pylint: disable=no-member
         print(exc)
     else:  # test failed - no ConstCaseError exception generated
         raise RuntimeError("Mixed-case const names should't have been allowed!")
@@ -39,7 +46,7 @@ if __name__ == '__main__':
 
     try:
         const.ANSWER = 17  # not OK, attempts to change defined constant
-    except const.ConstError as exc: #pylint: disable=no-member
+    except const.ConstError as exc:  # pylint: disable=no-member
         print(exc)
     else:  # test failed - no ConstError exception generated
         raise RuntimeError("Shouldn't have been able to change const attribute!")

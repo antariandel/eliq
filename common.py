@@ -43,7 +43,7 @@ class VerticalScrolledFrame(ttk.Frame):
         vscrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL)
         vscrollbar.grid(row=0, column=1, sticky=tk.NS)
         canvas = tk.Canvas(self, borderwidth=0, highlightthickness=0, yscrollcommand=vscrollbar.set)
-        canvas.grid(row=0, column=0, sticky=tk.EW+tk.NS)
+        canvas.grid(row=0, column=0, sticky=tk.EW + tk.NS)
         vscrollbar.config(command=canvas.yview)
 
         # reset the view
@@ -55,12 +55,11 @@ class VerticalScrolledFrame(ttk.Frame):
         interior_id = canvas.create_window(0, 0, window=interior, anchor=tk.NW)
 
         def _bound_to_mousewheel(event):
-            #if vscrollbar.get() != (0, 1):
-                if platform.system() != 'Linux':
-                    canvas.bind_all('<MouseWheel>', _on_mousewheel)
-                else:
-                    canvas.bind_all('<Button-4>', _on_mousewheel)
-                    canvas.bind_all('<Button-5>', _on_mousewheel)
+            if platform.system() != 'Linux':
+                canvas.bind_all('<MouseWheel>', _on_mousewheel)
+            else:
+                canvas.bind_all('<Button-4>', _on_mousewheel)
+                canvas.bind_all('<Button-5>', _on_mousewheel)
         interior.bind('<Enter>', _bound_to_mousewheel)
 
         def _unbound_to_mousewheel(event):
@@ -73,9 +72,9 @@ class VerticalScrolledFrame(ttk.Frame):
 
         def _on_mousewheel(event):
             if platform.system() != 'Darwin':
-                canvas.yview_scroll(int(-1*(event.delta/120)), 'units')
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
             else:
-                canvas.yview_scroll(int(-1*event.delta), 'units')
+                canvas.yview_scroll(int(-1 * event.delta), 'units')
 
         # track changes to the canvas and frame width and sync them,
         # also updating the scrollbar
@@ -102,7 +101,7 @@ class FloatValidator:
     '''
     
     def validate_float_entry(self, action: str, value: str,
-        widget_obj_name: str, min_value_or_attrname: str, max_value_or_attrname: str) -> bool:
+            widget_obj_name: str, min_value_or_attrname: str, max_value_or_attrname: str) -> bool:
         '''
         More on entry validation:
             http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/entry-validation.html
@@ -129,12 +128,12 @@ class FloatValidator:
         # Try to convert to float to see if it's a value, if can't, treat it as an attribute name
         # and get it with getattr from self.
         try:
-            min_value =  float(min_value_or_attrname)
+            min_value = float(min_value_or_attrname)
         except ValueError:
             min_value = getattr(self, min_value_or_attrname)
         try:
             max_value = float(max_value_or_attrname)
-        except:
+        except Exception:
             max_value = getattr(self, max_value_or_attrname)
         
         # If the values are in fact callables, call them.
@@ -152,7 +151,7 @@ class FloatValidator:
         # Update field to min_value if unfocused when blank or value is smaller than min_value.
         # This essentially prevents entering values smaller than min_value while enabling
         # proper deletion of the input and entering numbers initially smaller than min_value.
-        if action == '-1': # focus change action
+        if action == '-1':  # focus change action
             if not value or float_or_zero(value) < float(min_value):
                 entry_widget.delete(0, tk.END)
                 entry_widget.insert(0, float(min_value))
@@ -181,8 +180,8 @@ class CreateToolTip:
     ''' Create a tooltip for a given widget. '''
 
     def __init__(self, widget: tk.Widget, text='widget info'):
-        self.waittime = 500 #ms
-        self.wraplength = 180 #pixels
+        self.waittime = 500  # ms
+        self.wraplength = 180  # pixels
         self.widget = widget
         self.text = text
         self.widget.bind('<Enter>', self.enter)
@@ -210,23 +209,22 @@ class CreateToolTip:
 
     def showtip(self, event=None):
         x = y = 0
-        x, y, cx, cy = self.widget.bbox('insert') # pylint: disable=W0612
+        x, y, cx, cy = self.widget.bbox('insert')  # pylint: disable=W0612
         x += self.widget.winfo_rootx() + 25
         y += self.widget.winfo_rooty() + 20
         # creates a toplevel window
-        self.hidetip() # added this as a comment suggested
+        self.hidetip()  # added this as a comment suggested
         self.tw = tk.Toplevel(self.widget)
         # Leaves only the label and removes the app window
         self.tw.wm_overrideredirect(True)
         self.tw.wm_geometry('+%d+%d' % (x, y))
-        label = tk.Label(self.tw, text=self.text, justify='left',
-                       background='#ffffff', relief='solid', borderwidth=1,
-                       wraplength = self.wraplength)
+        label = tk.Label(self.tw, text=self.text, justify='left', background='#ffffff',
+            relief='solid', borderwidth=1, wraplength=self.wraplength)
         label.pack(ipadx=1)
 
     def hidetip(self):
         tw = self.tw
-        self.tw= None
+        self.tw = None
         if tw:
             tw.destroy()
 
@@ -235,7 +233,7 @@ class BaseDialog(ABC):
     ''' Abstract Base Class for dialogs. '''
 
     def __init__(self, parent: tk.Widget, callback: types.FunctionType, window_title: str,
-            text: str, destroy_on_close: bool=True, iconbitmap=icons['app-icon'], **kwargs):
+            text: str, destroy_on_close: bool = True, iconbitmap=icons['app-icon'], **kwargs):
         self.parent = parent
 
         self.toplevel = tk.Toplevel(self.parent)
@@ -257,7 +255,7 @@ class BaseDialog(ABC):
 
         self.ok_button = ttk.Button(self.frame, text='OK',
             command=lambda: self.close(True, **kwargs))
-        self.ok_button.grid(row=10, column=0, pady=16, sticky=tk.W+tk.E)
+        self.ok_button.grid(row=10, column=0, pady=16, sticky=tk.EW)
 
         self.toplevel.bind('<Return>', lambda event: self.close(True, **kwargs))
         self.toplevel.bind('<Escape>', lambda event: self.close(False, **kwargs))
@@ -276,7 +274,7 @@ class BaseDialog(ABC):
         pass
     
     @abstractmethod
-    def close(self, ok_clicked: bool=False, **kwargs) -> None:
+    def close(self, ok_clicked: bool = False, **kwargs) -> None:
         '''
         Override this to call self.callback somehow.
         Then super().close(ok_clicked, **kwargs) to close the dialog.
@@ -326,7 +324,7 @@ class FloatEntryDialog(BaseDialog, FloatValidator):
         
         self.no_button = ttk.Button(self.frame, text='Cancel', width=10,
             command=lambda: self.close(False))
-        self.no_button.grid(row=10, column=1, sticky=tk.W+tk.E)
+        self.no_button.grid(row=10, column=1, sticky=tk.EW)
     
     def close(self, ok_clicked: bool, **kwargs) -> None:
         super().close()
@@ -352,7 +350,7 @@ class StringDialog(BaseDialog):
         
         self.no_button = ttk.Button(self.frame, text='Cancel', width=10,
             command=lambda: self.close(False))
-        self.no_button.grid(row=10, column=1, sticky=tk.W+tk.E)
+        self.no_button.grid(row=10, column=1, sticky=tk.EW)
     
     def validate_entry(self, action: str, value: str, max_length: int) -> bool:
         if action == '-1':
@@ -397,7 +395,7 @@ class TextDialog(BaseDialog):
         
         self.no_button = ttk.Button(self.frame, text='Cancel', width=10,
             command=lambda: self.close(False))
-        self.no_button.grid(row=10, column=1, sticky=tk.W+tk.E)
+        self.no_button.grid(row=10, column=1, sticky=tk.EW)
 
         self.toplevel.unbind('<Return>')
         self.toplevel.unbind('<Escape>')

@@ -15,8 +15,8 @@ from version import VERSION
 
 
 class Library:
-    def __init__(self, parent: tk.Widget=None, library_db_file: str='library.db',
-            library_table_name: str = 'recipes'):
+    def __init__(self, parent: tk.Widget = None, library_db_file: str = 'library.db',
+                 library_table_name: str = 'recipes'):
         if parent is None:
             # assume that we need to be Tk root
             self.parent = None
@@ -71,11 +71,11 @@ class Library:
         self.treeview_frame = ttk.Frame(self.toplevel, borderwidth=5, relief=tk.RAISED)
         self.treeview_frame.columnconfigure(0, weight=1)
         self.treeview_frame.rowconfigure(0, weight=1)
-        self.treeview_frame.grid(column=0, row=1, sticky=tk.EW+tk.NS)
+        self.treeview_frame.grid(column=0, row=1, sticky=tk.EW + tk.NS)
 
         style = ttk.Style()
         style.configure('mystyle.Treeview', highlightthickness=0, border=0, font=('Calibri', 11))
-        style.configure('mystyle.Treeview.Heading', font=('Calibri', 11,'bold'))
+        style.configure('mystyle.Treeview.Heading', font=('Calibri', 11, 'bold'))
         style.layout('mystyle.Treeview', [('mystyle.Treeview.treearea', {'sticky': 'nswe'})])
 
         self.treeview = ttk.Treeview(self.treeview_frame, selectmode='browse',
@@ -83,7 +83,7 @@ class Library:
         self.treeview.configure(columns=('pgvg', 'nic', 'ml'))
         self.treeview.column('#0', width=350, anchor=tk.W)
         self.treeview.column('pgvg', width=90, stretch=False, anchor=tk.CENTER)
-        self.treeview.column('nic',width=90, stretch=False, anchor=tk.CENTER)
+        self.treeview.column('nic', width=90, stretch=False, anchor=tk.CENTER)
         self.treeview.column('ml', width=70, stretch=False, anchor=tk.CENTER)
         self.treeview.heading('#0', text='Mixture Name')
         self.treeview.heading('pgvg', text='PG / VG %')
@@ -93,7 +93,7 @@ class Library:
         self.treeview_vscroll = ttk.Scrollbar(self.treeview_frame, orient=tk.VERTICAL,
             command=self.treeview.yview)
         self.treeview.configure(yscrollcommand=self.treeview_vscroll.set)
-        self.treeview.grid(row=0, column=0, sticky=tk.EW+tk.NS)
+        self.treeview.grid(row=0, column=0, sticky=tk.EW + tk.NS)
         self.treeview_vscroll.grid(row=0, column=1, sticky=tk.NS)
         self.treeview.bind('<Double-1>', self.open_wrapper)
         self.treeview.bind('<Return>', self.open_wrapper)
@@ -155,8 +155,7 @@ class Library:
             destroy_on_close=False)
         remove_dialog.label.configure(
             text=('Are you sure you wish to remove\n'
-                    '%(name)s?') % {
-            'name': self.mixtures[mixture_identifier]['name'] })
+                  '{}?').format(self.mixtures[mixture_identifier]['name']))
         remove_dialog.ok_button.focus()
         remove_dialog.toplevel.deiconify()
 
@@ -188,7 +187,7 @@ class Library:
                     save_callback_args=[mixture_identifier],
                     discard_callback=self.close_window,
                     discard_callback_args=[mixture_identifier, self.opened_mixers])
-                if not create_new: # Load existing
+                if not create_new:  # Load existing
                     self.opened_mixers[mixture_identifier].load(
                         copy.deepcopy(self.mixtures[mixture_identifier]))
                 self.opened_mixers[mixture_identifier].toplevel.protocol('WM_DELETE_WINDOW',

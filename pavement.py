@@ -4,15 +4,14 @@ import os
 import sys
 import platform
 import shutil
-from zipfile import ZipFile, ZIP_DEFLATED
 
 import paver
 from paver.easy import task, options, Bunch, needs, cmdopts
 from paver.virtual import virtualenv
-from subprocess import Popen, STDOUT, PIPE
+from subprocess import Popen
 
 
-VERSION =''
+VERSION = ''
 exec(open('version.py', 'r').read())
 
 options(
@@ -30,17 +29,20 @@ options(
     )
 )
 
+
 @task
 @virtualenv('build_venv')
 def check_venv():
     for package in options.virtualenv.packages_to_install:
         __import__(package)
 
+
 @task
 @virtualenv('build_venv')
 def install_packages_in_venv():
     for package in options.virtualenv.packages_to_install:
         Popen('pip install {}'.format(package)).wait()
+
 
 @task
 def create_venv():
@@ -49,13 +51,14 @@ def create_venv():
     except FileNotFoundError:
         print('Venv not found, creating...')
         paver.virtual.bootstrap()
-        Popen(sys.executable+' '+options.virtualenv.script_name).wait()
+        Popen(sys.executable + ' ' + options.virtualenv.script_name).wait()
         os.remove(options.virtualenv.script_name)
         check_venv()
     except ModuleNotFoundError:
         print('Some modules not found, installing...')
         install_packages_in_venv()
         check_venv()
+
 
 @task
 @virtualenv('build_venv')
@@ -66,20 +69,22 @@ def build_pyinstaller():
                ' --add-data "res";"res" "eliq.pyw"')).wait()
     else:
         Popen('pyinstaller --noconfirm --clean --add-data "res":"res" "eliq.pyw"').wait()
-    
+
     # Capitalize the executable
     if platform.system() == 'Windows':
         os.rename(os.path.join('dist', 'eliq', 'eliq.exe'),
             os.path.join('dist', 'eliq', 'Eliq.exe'))
     # TODO: Capitalize executables for other platforms
-    
+
     os.rename(os.path.join('dist', 'eliq'),
         os.path.join('dist', '{} {}'.format(options.setup.name, options.setup.version)))
+
 
 @task
 @needs('create_venv')
 def build_standalone():
     build_pyinstaller()
+
 
 @task
 @cmdopts([
@@ -99,7 +104,7 @@ def build_archive():
             return
     else:
         build_standalone()
-        
+
     if platform.system() == 'Windows':
         build_dir = os.path.join('dist',
             '{} {}'.format(options.setup.name, options.setup.version))
@@ -114,6 +119,7 @@ def build_archive():
     if hasattr(options.build_archive, 'clean'):
         clean()
 
+
 @task
 @cmdopts([
     ('new_version=', 'u', 'Update version number')
@@ -121,10 +127,11 @@ def build_archive():
 def version(options):
     if hasattr(options.version, 'new_version'):
         with open('version.py', 'w') as f:
-            f.write('VERSION = \'{}\''.format(options.version.new_version))
+            f.write('VERSION = \'{}\'\n'.format(options.version.new_version))
         print('Version updated to: {}'.format(options.version.new_version))
     else:
         print('Version is: {}'.format(VERSION))
+
 
 @task
 @cmdopts([
@@ -136,13 +143,13 @@ def clean():
         print('Removed \'build\'')
     except FileNotFoundError:
         print('Skipping \'build\' (not found)')
-    
+
     try:
         shutil.rmtree('build_venv')
         print('Removed \'build_venv\'')
     except FileNotFoundError:
         print('Skipping \'build_venv\' (not found)')
-    
+
     dist_dir = os.path.join('dist',
         '{} {}'.format(options.setup.name, options.setup.version))
     try:
@@ -150,13 +157,13 @@ def clean():
         print('Removed \'{}\''.format(dist_dir))
     except FileNotFoundError:
         print('Skipping \'{}\' (not found)'.format(dist_dir))
-    
+
     try:
         os.remove('eliq.spec')
         print('Removed \'eliq.spec\'')
     except FileNotFoundError:
         print('Skipping \'eliq.spec\' (not found)')
-    
+
     if hasattr(options.clean, 'all'):
         try:
             shutil.rmtree('dist')

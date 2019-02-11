@@ -2,17 +2,16 @@ import tkinter as tk
 from tkinter import ttk
 
 import platform
-import os
-from random import randint
 from typing import List
 
 from fludo import Liquid, Mixture
 
-from images import icons, set_icon, graphics
+from images import icons, graphics
 from common import round_digits
 
+
 class BottleViewer:
-    def __init__(self, parent: tk.Widget=None):
+    def __init__(self, parent: tk.Widget = None):
         if parent is None:
             # assume that we need to be Tk root
             self.parent = None
@@ -56,12 +55,11 @@ class BottleViewer:
         self.toplevel.deiconify()
 
         def _bound_to_mousewheel(event):
-            #if self.scrollbar.get() != (0, 1):
-                if platform.system() != 'Linux':
-                    self.canvas.bind_all('<MouseWheel>', _on_mousewheel)
-                else:
-                    self.canvas.bind_all('<Button-4>', _on_mousewheel)
-                    self.canvas.bind_all('<Button-5>', _on_mousewheel)
+            if platform.system() != 'Linux':
+                self.canvas.bind_all('<MouseWheel>', _on_mousewheel)
+            else:
+                self.canvas.bind_all('<Button-4>', _on_mousewheel)
+                self.canvas.bind_all('<Button-5>', _on_mousewheel)
         self.canvas.bind('<Enter>', _bound_to_mousewheel)
 
         def _unbound_to_mousewheel(event):
@@ -74,9 +72,9 @@ class BottleViewer:
 
         def _on_mousewheel(event):
             if platform.system() != 'Darwin':
-                self.canvas.yview_scroll(int(-1*(event.delta/120)), 'units')
+                self.canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
             else:
-                self.canvas.yview_scroll(int(-1*event.delta), 'units')
+                self.canvas.yview_scroll(int(-1 * event.delta), 'units')
     
     def set_name(self, name):
         self.name = name
@@ -91,7 +89,7 @@ class BottleViewer:
         self.bottle_size = volume
         self.redraw()
     
-    def set_ingredients(self, ingredients: List[Liquid]=[]):
+    def set_ingredients(self, ingredients: List[Liquid] = []):
         self.ingredients = ingredients
         self.ingredients.sort(key=lambda liquid: liquid.ml, reverse=False)
         self.redraw()
@@ -109,7 +107,7 @@ class BottleViewer:
         self.ingredient_rectangles = []
 
         # Create rectangles
-        for ingredient in self.ingredients: #pylint: disable=W0612
+        for ingredient in self.ingredients:  # pylint: disable=W0612
             self.ingredient_rectangles.append(self.canvas.create_rectangle(
                 bottom_left_position,
                 (bottom_left_position[0] + width, bottom_left_position[1]),
@@ -126,7 +124,7 @@ class BottleViewer:
             self.canvas.coords(rectangle, (x0, y0, x1, y1))
             
             fill_color = '#%02x%02x%02x' % (
-                int(180 - 80 * (self.ingredients[index].pg+self.ingredients[index].vg)/100 +
+                int(180 - 80 * (self.ingredients[index].pg + self.ingredients[index].vg) / 100 +
                     50 * (1 if self.ingredients[index].nic else 0)),
                 int(240 - self.ingredients[index].pg -
                     110 * (1 if self.ingredients[index].nic else 0)),
@@ -153,9 +151,9 @@ class BottleViewer:
         # Draw ingredient names
         ingredient_line_heights = []
         for index, liquid in enumerate(self.ingredients[::-1]):
-            self.canvas.create_text((260, 60+45*index), font=('Calibri', 13), anchor=tk.W,
+            self.canvas.create_text((260, 60 + 45 * index), font=('Calibri', 13), anchor=tk.W,
                 text='{}ml'.format(liquid.ml))
-            self.canvas.create_text((330, 60+45*index), font=('Calibri', 12), anchor=tk.W,
+            self.canvas.create_text((330, 60 + 45 * index), font=('Calibri', 12), anchor=tk.W,
                 text='{}\n{}% PG / {}% VG, {} mg/ml'.format(
                     liquid.name,
                     liquid.pg,
@@ -163,7 +161,7 @@ class BottleViewer:
                     liquid.nic))
             
             # Draw line
-            line_y = 60+45*index
+            line_y = 60 + 45 * index
             ingredient_line_heights.append(line_y)
 
             self.canvas.create_line((250, line_y, 255, line_y))
@@ -178,20 +176,20 @@ class BottleViewer:
         
         # Draw mixture properties
         mixture = Mixture(*self.ingredients)
-        self.canvas.create_text((106, 180), font=('Calibri', 12, 'bold'), anchor=tk.N, justify=tk.CENTER,
-            text='{} ml'.format(round_digits(mixture.ml, 1)))
-        self.canvas.create_text((87, 218), font=('Calibri', 12, 'bold'), anchor=tk.N, justify=tk.CENTER,
-            text='{}%'.format(int(mixture.pg)))
-        self.canvas.create_text((127, 218), font=('Calibri', 12, 'bold'), anchor=tk.N, justify=tk.CENTER,
-            text='{}%'.format(int(mixture.vg)))
-        self.canvas.create_text((106, 241), font=('Calibri', 14, 'bold'), anchor=tk.N, justify=tk.CENTER,
-            text='{}'.format(round_digits(mixture.nic, 1)))
+        self.canvas.create_text((106, 180), font=('Calibri', 12, 'bold'), anchor=tk.N,
+            justify=tk.CENTER, text='{} ml'.format(round_digits(mixture.ml, 1)))
+        self.canvas.create_text((87, 218), font=('Calibri', 12, 'bold'), anchor=tk.N,
+            justify=tk.CENTER, text='{}%'.format(int(mixture.pg)))
+        self.canvas.create_text((127, 218), font=('Calibri', 12, 'bold'), anchor=tk.N,
+            justify=tk.CENTER, text='{}%'.format(int(mixture.vg)))
+        self.canvas.create_text((106, 241), font=('Calibri', 14, 'bold'), anchor=tk.N,
+            justify=tk.CENTER, text='{}'.format(round_digits(mixture.nic, 1)))
         
-        bottom = 60+45*len(self.ingredients)
+        bottom = 60 + 45 * len(self.ingredients)
 
         # Draw notes:
         if self.notes:
-            self.canvas.create_line((260, bottom-8, 660, bottom-8))
+            self.canvas.create_line((260, bottom - 8, 660, bottom - 8))
             notes = self.canvas.create_text((260, bottom), font=('Calibri', 12), anchor=tk.NW,
                 justify=tk.LEFT, width=400, text=self.notes)
 
@@ -201,5 +199,3 @@ class BottleViewer:
         min_bottom = 450
         
         self.canvas.configure(scrollregion=(0, 0, 0, min_bottom if bottom < min_bottom else bottom))
-
-
