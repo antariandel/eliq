@@ -11,6 +11,7 @@ from storage import ObjectStorage
 from mixer import Mixer
 from viewer import BottleViewer
 from images import icons, set_icon
+from version import VERSION
 
 
 class Library:
@@ -34,7 +35,7 @@ class Library:
         self.library_db_file = library_db_file
         self.library_table_name = library_table_name
         
-        self.toplevel.title('Eliq | Library')
+        self.toplevel.title('Eliq {} | Library'.format(VERSION))
         self.toplevel.iconbitmap(icons['app-icon'])
         self.toplevel.minsize(0, 300)
         self.toplevel.resizable(False, True)
