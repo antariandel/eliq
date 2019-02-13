@@ -12,7 +12,7 @@ class ObjectStorage:
 
     def __init__(self, sqlite_db_path: str, table_name: str):
         self.sqlite_db_path = sqlite_db_path
-        self.table_name = ObjectStorage._scrub_table_name(table_name)
+        self.table_name = self._scrub_table_name(table_name)
 
         self.sqlite_connection = sqlite3.connect(self.sqlite_db_path)
         self.sqlite_cursor = self.sqlite_connection.cursor()
@@ -47,15 +47,15 @@ class ObjectStorage:
             id INTEGER PRIMARY KEY ASC,
             tag TEXT UNIQUE,
             object BLOB
-        )'''.format(ObjectStorage._scrub_table_name(self.table_name)))
+        )'''.format(self._scrub_table_name(self.table_name)))
 
     def store(self, tag: str, object_: Any) -> None:
         ''' Store one object in the sqlite table with a given tag. '''
 
         try:
             self.sqlite_cursor.execute('''INSERT INTO {0} (tag, object) VALUES (?, ?)'''.format(
-                ObjectStorage._scrub_table_name(self.table_name)),
-                ObjectStorage._scrub_tag(tag), pickle.dumps(object_, protocol=4))
+                self._scrub_table_name(self.table_name)),
+                (self._scrub_tag(tag), pickle.dumps(object_, protocol=4)))
             self.sqlite_connection.commit()
         except sqlite3.IntegrityError:
             print('Object with tag <{0}> exists in the database! Tags must be unique.'.format(tag))
@@ -65,7 +65,7 @@ class ObjectStorage:
         ''' Get one object from the sqlite table with a given tag. Return None if doesn't exist. '''
 
         self.sqlite_cursor.execute('SELECT id, tag, object FROM {0} WHERE tag=?'.format(
-            ObjectStorage._scrub_table_name(self.table_name)), (tag, ))
+            self._scrub_table_name(self.table_name)), (tag, ))
         
         object_ = self.sqlite_cursor.fetchone()
         if object_:
@@ -77,7 +77,7 @@ class ObjectStorage:
         ''' Return all stored objects in a dict with their tags as keys. '''
 
         self.sqlite_cursor.execute('SELECT id, tag, object FROM {0}'.format(
-            ObjectStorage._scrub_table_name(self.table_name)))
+            self._scrub_table_name(self.table_name)))
         
         objects = dict()
 
@@ -92,12 +92,12 @@ class ObjectStorage:
         ''' Delete one object from storage with the given tag. '''
 
         self.sqlite_cursor.execute('DELETE FROM {0} WHERE tag=?'.format(
-            ObjectStorage._scrub_table_name(self.table_name)), (tag, ))
+            self._scrub_table_name(self.table_name)), (tag, ))
         self.sqlite_connection.commit()
     
     def delete_all(self) -> None:
         ''' Purge storage of all objects. '''
 
         self.sqlite_cursor.execute('DROP TABLE IF EXISTS {0}'.format(
-            ObjectStorage._scrub_table_name(self.table_name)))
+            self._scrub_table_name(self.table_name)))
         self.create_table()
