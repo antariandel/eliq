@@ -5,6 +5,7 @@ build_venv
 dist
 playground
 bootstrap.py
+.vscode
 *.pyc
 *.fldb
 *.db
