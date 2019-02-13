@@ -55,7 +55,7 @@ class ObjectStorage:
         try:
             self.sqlite_cursor.execute('''INSERT INTO {0} (tag, object) VALUES (?, ?)'''.format(
                 ObjectStorage._scrub_table_name(self.table_name)),
-                (ObjectStorage._scrub_tag(tag), pickle.dumps(object_, pickle.HIGHEST_PROTOCOL)))
+                ObjectStorage._scrub_tag(tag), pickle.dumps(object_, protocol=4))
             self.sqlite_connection.commit()
         except sqlite3.IntegrityError:
             print('Object with tag <{0}> exists in the database! Tags must be unique.'.format(tag))
