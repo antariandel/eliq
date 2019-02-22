@@ -82,6 +82,9 @@ def build_pyinstaller():
 
 @task
 @needs('create_venv')
+@cmdopts([
+    ('archive', 'a', 'Create an archive of the build.'),
+])
 def build():
     if os.path.exists(os.path.join('dist',
             '{} {}'.format(options.setup.name, options.setup.version))):
@@ -96,29 +99,18 @@ def build():
             return
     else:
         build_pyinstaller()
-
-
-@task
-@cmdopts([
-    ('clean', 'c', 'Clean all build directories, leaving only the archive in dist.')
-])
-def build_archive():
     
-    build()
-
-    if platform.system() == 'Windows':
-        build_dir = os.path.join('dist',
-            '{} {}'.format(options.setup.name, options.setup.version))
-        try:
-            os.remove(build_dir + '.zip')
-        except FileNotFoundError:
-            # Did not exist
-            pass
-        shutil.make_archive(build_dir, 'zip', build_dir)
-    # TODO: Create tar.gz for other platforms
-
-    if hasattr(options.build_archive, 'clean'):
-        clean()
+    if hasattr(options.build, 'archive'):
+        if platform.system() == 'Windows':
+            build_dir = os.path.join('dist',
+                '{} {}'.format(options.setup.name, options.setup.version))
+            try:
+                os.remove(build_dir + '.zip')
+            except FileNotFoundError:
+                # Did not exist
+                pass
+            shutil.make_archive(build_dir, 'zip', build_dir)
+        # TODO: Create tar.gz for other platforms
 
 
 @task
