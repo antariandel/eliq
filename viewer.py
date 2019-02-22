@@ -24,7 +24,7 @@ class BottleViewer:
         self.toplevel.withdraw()
 
         self.toplevel.title('Eliq | Bottle')
-        self.toplevel.iconbitmap(icons['app-icon'])
+        self.toplevel.iconbitmap(icons['titlebar'])
         self.toplevel.minsize(660, 500)
         self.toplevel.resizable(False, True)
         self.toplevel.grid_rowconfigure(0, weight=1)

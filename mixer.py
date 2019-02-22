@@ -244,7 +244,7 @@ class Mixer:
         self.name.set(mixture_name)
 
         self.toplevel.title('Eliq | Liquid Mixer')
-        self.toplevel.iconbitmap(icons['app-icon'])
+        self.toplevel.iconbitmap(icons['titlebar'])
         self.toplevel.minsize(0, 280)
         self.toplevel.resizable(False, True)
         self.toplevel.grid_columnconfigure(0, weight=1)

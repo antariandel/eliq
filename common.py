@@ -233,7 +233,7 @@ class BaseDialog(ABC):
     ''' Abstract Base Class for dialogs. '''
 
     def __init__(self, parent: tk.Widget, callback: types.FunctionType, window_title: str,
-            text: str, destroy_on_close: bool = True, iconbitmap=icons['app-icon'], **kwargs):
+            text: str, destroy_on_close: bool = True, iconbitmap=icons['titlebar'], **kwargs):
         self.parent = parent
 
         self.toplevel = tk.Toplevel(self.parent)

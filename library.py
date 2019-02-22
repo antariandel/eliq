@@ -36,7 +36,7 @@ class Library:
         self.library_table_name = library_table_name
         
         self.toplevel.title('Eliq {} | Library'.format(VERSION))
-        self.toplevel.iconbitmap(icons['app-icon'])
+        self.toplevel.iconbitmap(icons['titlebar'])
         self.toplevel.minsize(0, 300)
         self.toplevel.resizable(False, True)
 

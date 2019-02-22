@@ -65,7 +65,7 @@ def create_venv():
 @needs('create_venv')
 def build_pyinstaller():
     if platform.system() == 'Windows':
-        Popen(('pyinstaller --noconfirm --noconsole --clean --icon "res/icons/app-icon.ico"'
+        Popen(('pyinstaller --noconfirm --noconsole --clean --icon "res/icons/application.ico"'
                ' --add-data "res";"res" "eliq.pyw"')).wait()
     else:
         Popen('pyinstaller --noconfirm --clean --add-data "res":"res" "eliq.pyw"').wait()
@@ -82,15 +82,7 @@ def build_pyinstaller():
 
 @task
 @needs('create_venv')
-def build_standalone():
-    build_pyinstaller()
-
-
-@task
-@cmdopts([
-    ('clean', 'c', 'Clean all build directories, leaving only the archive in dist.')
-])
-def build_archive():
+def build():
     if os.path.exists(os.path.join('dist',
             '{} {}'.format(options.setup.name, options.setup.version))):
         print('Existing build directory found in dist. Rebuild? (y/n/c) ')
@@ -98,12 +90,21 @@ def build_archive():
         if answer in ['y', 'Y']:
             shutil.rmtree(os.path.join('dist',
                 '{} {}'.format(options.setup.name, options.setup.version)))
-            build_standalone()
+            build()
         elif answer in ['c', 'C']:
             print('Cancel.')
             return
     else:
-        build_standalone()
+        build_pyinstaller()
+
+
+@task
+@cmdopts([
+    ('clean', 'c', 'Clean all build directories, leaving only the archive in dist.')
+])
+def build_archive():
+    
+    build()
 
     if platform.system() == 'Windows':
         build_dir = os.path.join('dist',

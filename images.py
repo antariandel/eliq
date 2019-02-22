@@ -38,8 +38,8 @@ def load_images(directory_list):
             if '.png' in filename:
                 images[filename.partition('.png')[0]] = \
                     os.path.join(resource_path(directory), filename)
-            if 'app-icon' in filename:
-                images['app-icon'] = os.path.join(resource_path(directory), filename)
+            if 'titlebar' in filename:
+                images['titlebar'] = os.path.join(resource_path(directory), filename)
     return images
 
 
