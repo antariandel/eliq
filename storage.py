@@ -26,7 +26,7 @@ class ObjectStorage:
     def _scrub_table_name(table_name: str):
         ''' Allows only alphanumerics and underscore in the storage table name. '''
 
-        if ''.join( char for char in table_name if (char.isalnum() or char == '_' )) != table_name:
+        if ''.join(char for char in table_name if (char.isalnum() or char == '_')) != table_name:
             raise Exception('Table name must only contain alphanumerics and underscore.')
         else:
             return table_name
@@ -35,7 +35,7 @@ class ObjectStorage:
     def _scrub_tag(tag: str):
         ''' Allows only alphanumerics, underscore and hyphen in tags. '''
 
-        if ''.join( char for char in tag if (char.isalnum() or char == '_' or char == '-' )) != tag:
+        if ''.join(char for char in tag if (char.isalnum() or char == '_' or char == '-')) != tag:
             raise Exception('Tags must only contain alphanumerics, underscore and hyphen.')
         else:
             return tag
