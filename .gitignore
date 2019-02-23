@@ -6,6 +6,7 @@ dist
 playground
 bootstrap.py
 .vscode
+.vscode/*
 *.pyc
 *.fldb
 *.db
