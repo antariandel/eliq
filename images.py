@@ -35,11 +35,9 @@ def load_images(directory_list):
     images = {}
     for directory in directory_list:
         for filename in os.listdir(resource_path(directory)):
-            if '.png' in filename:
-                images[filename.partition('.png')[0]] = \
+            if os.path.splitext(filename)[1] in ['.png', '.ico']:
+                images[os.path.splitext(filename)[0]] = \
                     os.path.join(resource_path(directory), filename)
-            if 'titlebar' in filename:
-                images['titlebar'] = os.path.join(resource_path(directory), filename)
     return images
 
 
