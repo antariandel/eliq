@@ -1,7 +1,8 @@
 #! /usr/bin/env python3
 
 # TODO: Create Settings
-# TODO: Create About with version string
+# TODO: Create About Dialog with version string
+# TODO: Decouple Tkinter from application logic
 
 from library import Library
 
