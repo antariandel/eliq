@@ -11,16 +11,14 @@ from common import (float_or_zero, round_digits, center_toplevel, CreateToolTip,
 from images import icons, set_icon
 from viewer import BottleViewer
 
-import const
-
-const.CONTAINER_MIN = 10
-const.CONTAINER_MAX = 10000
-const.MAX_INGREDIENTS = 20
-const.MAX_MIXTURE_NAME_LENGTH = 30
-const.MAX_NIC_CONCENTRATION = 1000
-const.DEFAULT_MIXTURE_NAME = 'My Mixture'
-const.DEFAULT_INGREDIENT_NAME = 'Unnamed Ingredient'
-const.DEFAULT_NOTES_CONTENT = ''
+CONTAINER_MIN = 10
+CONTAINER_MAX = 10000
+MAX_INGREDIENTS = 20
+MAX_MIXTURE_NAME_LENGTH = 30
+MAX_NIC_CONCENTRATION = 1000
+DEFAULT_MIXTURE_NAME = 'My Mixture'
+DEFAULT_INGREDIENT_NAME = 'Unnamed Ingredient'
+DEFAULT_NOTES_CONTENT = ''
 
 
 class NewIngredientDialog(BaseDialog):
@@ -30,7 +28,7 @@ class NewIngredientDialog(BaseDialog):
 
     def configure_widgets(self, **kwargs):
         self.name = tk.StringVar()
-        self.name.set(const.DEFAULT_INGREDIENT_NAME
+        self.name.set(DEFAULT_INGREDIENT_NAME
             if 'liquid' not in kwargs else kwargs['liquid'].name)
 
         self.pg = tk.StringVar()
@@ -132,8 +130,8 @@ class NewIngredientDialog(BaseDialog):
         if 'name_entry' in widget_name:
             if action == '-1':  # focus change
                 if not value:
-                    self.name.set(const.DEFAULT_INGREDIENT_NAME)
-                elif self.name.get() == const.DEFAULT_INGREDIENT_NAME:
+                    self.name.set(DEFAULT_INGREDIENT_NAME)
+                elif self.name.get() == DEFAULT_INGREDIENT_NAME:
                     self.name.set('')
             if len(value) < 30:
                 return True
@@ -186,7 +184,7 @@ class NewIngredientDialog(BaseDialog):
             if value:
                 try:
                     float(value)
-                    if float(value) < 0 or float(value) > const.MAX_NIC_CONCENTRATION:
+                    if float(value) < 0 or float(value) > MAX_NIC_CONCENTRATION:
                         return False
                     else:
                         return True
@@ -209,7 +207,7 @@ class NewIngredientDialog(BaseDialog):
 
         if ok_clicked:
             self.callback(fludo.Liquid(
-                name=const.DEFAULT_INGREDIENT_NAME if not self.name.get() else self.name.get(),
+                name=DEFAULT_INGREDIENT_NAME if not self.name.get() else self.name.get(),
                 pg=float_or_zero(self.pg.get()),
                 vg=float_or_zero(self.vg.get()),
                 nic=float_or_zero(self.nic.get()),
@@ -225,7 +223,7 @@ class Mixer:
     MixerIngredientController objects (the ingredients of the mixture).
     '''
 
-    def __init__(self, parent: tk.Widget = None, mixture_name: str = const.DEFAULT_MIXTURE_NAME,
+    def __init__(self, parent: tk.Widget = None, mixture_name: str = DEFAULT_MIXTURE_NAME,
             save_callback: types.FunctionType = None, save_callback_args: list = [],
             discard_callback: types.FunctionType = None, discard_callback_args: list = []):
 
@@ -338,7 +336,7 @@ class Mixer:
         self._ingredient_list = []
         self._bottle_vol = 100  # Default to 100ml
         self.total_cost = 0
-        self.notes = const.DEFAULT_NOTES_CONTENT
+        self.notes = DEFAULT_NOTES_CONTENT
         self.save_callback = save_callback
         self.save_callback_args = save_callback_args
         self.discard_callback = discard_callback
@@ -358,14 +356,14 @@ class Mixer:
     def validate_name_entry(self, action: str, value: str) -> bool:
         # Update field to default name if unfocused when blank.
         if action == '-1':  # focus change action
-            if self.name.get() == const.DEFAULT_MIXTURE_NAME:
+            if self.name.get() == DEFAULT_MIXTURE_NAME:
                 self.name.set('')
             elif not self.name.get():
-                self.name.set(const.DEFAULT_MIXTURE_NAME)
+                self.name.set(DEFAULT_MIXTURE_NAME)
         
         # Allow names shorter than MAX_MIXTURE_NAME_LENGTH
         if value:
-            if len(value) > const.MAX_MIXTURE_NAME_LENGTH:
+            if len(value) > MAX_MIXTURE_NAME_LENGTH:
                 return False
             else:
                 return True
@@ -376,9 +374,9 @@ class Mixer:
     def set_bottle_volume(self, ml: Union[int, float]) -> None:
         ''' Updates the bottle volume (size). '''
 
-        if ml > const.CONTAINER_MAX:
+        if ml > CONTAINER_MAX:
             raise Exception('Parameter ml larger than maximum allowed!')
-        if ml < const.CONTAINER_MIN:
+        if ml < CONTAINER_MIN:
             raise Exception('Parameter ml smaller than minimum allowed!')
         
         ratio = ml / self._bottle_vol
@@ -428,9 +426,9 @@ class Mixer:
             self.change_bottle_dialog = FloatEntryDialog(self.toplevel,
                 window_title='Change Bottle Size',
                 text=('Enter new size in milliliters below.\n'
-                      'Minimum size is {} ml, max. is {} ml.').format(const.CONTAINER_MIN,
-                        const.CONTAINER_MAX),
-                min_value=const.CONTAINER_MIN, max_value=const.CONTAINER_MAX,
+                      'Minimum size is {} ml, max. is {} ml.').format(CONTAINER_MIN,
+                        CONTAINER_MAX),
+                min_value=CONTAINER_MIN, max_value=CONTAINER_MAX,
                 default_value=self._bottle_vol,
                 callback=self.set_bottle_volume,
                 destroy_on_close=False)
@@ -455,7 +453,7 @@ class Mixer:
                 window_title='Eliq | Add Notes | {}'.format(self.name.get()),
                 text='Add your notes below:',
                 text_content=self.get_notes(),
-                default_value=const.DEFAULT_NOTES_CONTENT,
+                default_value=DEFAULT_NOTES_CONTENT,
                 callback=self.set_notes,
                 destroy_on_close=False)
             self.add_notes_dialog.ok_button.configure(text='Save & Close')
@@ -482,7 +480,7 @@ class Mixer:
         self.discard_dialog.toplevel.deiconify()
     
     def rename(self, new_name) -> None:
-        if len(new_name) < const.MAX_MIXTURE_NAME_LENGTH:
+        if len(new_name) < MAX_MIXTURE_NAME_LENGTH:
             self.name.set(new_name)
 
             if self.bottle_viewer is not None:
@@ -516,7 +514,7 @@ class Mixer:
 
         self._ingredient_list.append(ingredient)
 
-        if len(self._ingredient_list) >= const.MAX_INGREDIENTS:
+        if len(self._ingredient_list) >= MAX_INGREDIENTS:
             self.add_button.configure(state=tk.DISABLED)
             self.add_button_ttip = CreateToolTip(self.add_button,
                 'Max number of ingredients reached.')
@@ -536,7 +534,7 @@ class Mixer:
                 window_title='Add Ingredient', destroy_on_close=False, button_text='Add',
                 text='Fill in the ingredient\'s properties below:')
         self.new_ingredient_dialog.toplevel.deiconify()
-        self.new_ingredient_dialog.name.set(const.DEFAULT_INGREDIENT_NAME)
+        self.new_ingredient_dialog.name.set(DEFAULT_INGREDIENT_NAME)
         self.new_ingredient_dialog.pg.set(50)
         self.new_ingredient_dialog.vg.set(50)
         self.new_ingredient_dialog.nic.set(0)
@@ -581,7 +579,7 @@ class Mixer:
         self._ingredient_list.remove(ingredient_or_idx)
         self.frame.interior.grid_rowconfigure(grid_row_idx, minsize=0)  # Hide row
 
-        if len(self._ingredient_list) < const.MAX_INGREDIENTS:
+        if len(self._ingredient_list) < MAX_INGREDIENTS:
             self.add_button.configure(state=tk.NORMAL)
             self.add_button_ttip = CreateToolTip(self.add_button,
                 'Add new ingredient to the mixture.')
@@ -681,11 +679,11 @@ class Mixer:
         if ingredients_max_vol > loadable_dict['bottle_vol']:
             raise Exception('Ingredients volume exceeds bottle volume.')
         
-        if loadable_dict['bottle_vol'] < const.CONTAINER_MIN:
+        if loadable_dict['bottle_vol'] < CONTAINER_MIN:
             raise ValueError('Bottle volume is lesser than minimum allowed!')
-        if loadable_dict['bottle_vol'] > const.CONTAINER_MAX:
+        if loadable_dict['bottle_vol'] > CONTAINER_MAX:
             raise ValueError('Bottle volume is greater than maximum allowed!')
-        if len(loadable_dict['ingredients']) > const.MAX_INGREDIENTS:
+        if len(loadable_dict['ingredients']) > MAX_INGREDIENTS:
             raise ValueError('Number of ingredients exceeds the maximum allowed!')
 
         # Seems okay, purge and load:
@@ -704,12 +702,12 @@ class Mixer:
         if 'name' in loadable_dict:
             self.rename(loadable_dict['name'])
         else:
-            self.rename(const.DEFAULT_MIXTURE_NAME)
+            self.rename(DEFAULT_MIXTURE_NAME)
         
         if 'notes' in loadable_dict:
             self.set_notes(loadable_dict['notes'])
         else:
-            self.set_notes(const.DEFAULT_NOTES_CONTENT)
+            self.set_notes(DEFAULT_NOTES_CONTENT)
         
         self.update()
         # center_toplevel(self.toplevel)
