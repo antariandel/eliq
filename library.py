@@ -68,7 +68,7 @@ class Library:
         set_icon(self.duplicate_button, icons['copy'])
         self.duplicate_button.grid(row=0, column=4)
 
-        self.treeview_frame = ttk.Frame(self.toplevel, borderwidth=5, relief=tk.RAISED)
+        self.treeview_frame = ttk.Frame(self.toplevel)
         self.treeview_frame.columnconfigure(0, weight=1)
         self.treeview_frame.rowconfigure(0, weight=1)
         self.treeview_frame.grid(column=0, row=1, sticky=tk.EW + tk.NS)
