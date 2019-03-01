@@ -17,18 +17,18 @@ from version import VERSION
 
 
 class Library:
-    def __init__(self, library_ui = LibraryUI(None), mixer = Mixer, viewer = BottleViewer,
-                library_db_file: str = 'library.db',  library_table_name: str = 'recipes'):
+    def __init__(self, ui, mixer, viewer, storage):
         
-        self.ui = library_ui
+        self.ui = ui
         self.ui.refresh_mixture_list()
 
         self.mixer = mixer
         self.viewer = viewer
+        self.storage = storage
 
-        self.mixtures = None
-        self.opened_mixers = {}
-        self.opened_viewers = {}
+        self.mixtures = {}  # mixer dumps
+        self.opened_mixers = {}  # mixer instances
+        self.opened_viewers = {}  # viewer instances
     
     def close(self):
         if self.opened_mixers:
@@ -37,9 +37,8 @@ class Library:
             self.ui.close()
     
     def save_mixture_callback(self, mixture_dict, mixture_identifier):
-        storage = ObjectStorage(self.library_db_file, self.library_table_name)
-        storage.delete(mixture_identifier)
-        storage.store(mixture_identifier, mixture_dict)
+        self.storage.delete(mixture_identifier)
+        self.storage.store(mixture_identifier, mixture_dict)
         self.close_window(mixture_identifier, self.opened_mixers)
 
         self.ui.refresh_mixture_list()
@@ -50,13 +49,14 @@ class Library:
         if not mixture_identifier:
             return
         else:
-            self.ui.show_remove_dialog(callback=lambda ok_clicked, **kwargs:
-                self.delete_mixture(kwargs[mix_id] if ok_clicked else None),
-                callback_kwargs={'mix_id': mixture_identifier})
+            self.ui.show_remove_dialog(mixture_name=self.mixer.get_dump_property(
+                self.mixtures[mixture_identifier], 'name'),
+                callback=lambda ok_clicked, *args:
+                    self.delete_mixture(mixture_identifier if ok_clicked else None))
 
     def delete_mixture(self, mixture_identifier):
         if mixture_identifier is not None:
-            ObjectStorage(self.library_db_file, self.library_table_name).delete(mixture_identifier)
+            self.storage.delete(mixture_identifier)
         
         if mixture_identifier in self.opened_mixers:
             self.close_window(mixture_identifier, self.opened_mixers)
@@ -66,15 +66,17 @@ class Library:
         self.ui.refresh_mixture_list()
     
     def duplicate_mixture(self, mixture_identifier):
-        storage = ObjectStorage(self.library_db_file, self.library_table_name)
-        mixture_dict = self.mixtures[mixture_identifier]
-        mixture_dict['name'] = 'Copy of {}'.format(mixture_dict['name'])
-        storage.store(str(uuid.uuid4()), mixture_dict)
+        # TODO: Create mixer dump manipulators
+        self.mixer.set_dump_property(self.mixtures[mixture_identifier],
+            name='Copy of {}'.format(
+                self.mixer.get_dump_property(self.mixtures[mixture_identifier], 'name')))
+
+        self.storage.store(str(uuid.uuid4()), self.mixtures[mixture_identifier])
 
         self.ui.refresh_mixture_list()
     
     def close_window(self, window_key, opened_windows_dict):
-        # TODO: Replace with .ui.close() when Mixer's UI is decoupled as well
+        # TODO: Replace with .ui.close() when Mixer is decoupled
         opened_windows_dict[window_key].toplevel.destroy()
         del opened_windows_dict[window_key]
     
@@ -82,7 +84,8 @@ class Library:
         if mixture_identifier in self.mixtures or create_new:
             if mixture_identifier not in self.opened_mixers:
                 self.opened_mixers[mixture_identifier] = self.mixer(
-                    parent=self.toplevel, # TODO: Replace with just self once Mixer is decoupled
+                    # TODO: Replace with just parent=self once Mixer is decoupled:
+                    parent=self.toplevel,
                     save_callback=self.save_mixture_callback,
                     save_callback_args=[mixture_identifier],
                     discard_callback=self.close_window,

@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 
+from common_ui import CommonUI
+
 
 class LibraryUI:
     def __init__(self, parent = None):
@@ -12,9 +14,6 @@ class LibraryUI:
 
         self.toplevel.rowconfigure(1, weight=1)
         self.toplevel.columnconfigure(0, weight=1)
-        
-        self.library_db_file = library_db_file
-        self.library_table_name = library_table_name
         
         self.toplevel.title('Eliq {} | Library'.format(VERSION))
         self.toplevel.iconbitmap(icons['titlebar'])
@@ -80,11 +79,6 @@ class LibraryUI:
         self.treeview.bind('<Return>', self.open_wrapper)
         self.treeview.bind('<Button-1>', self._inhibit_column_resize)
         self.treeview.bind('<Delete>', lambda event: self.show_remove_dialog(self.treeview.focus()))
-
-        self.mixtures = None
-        self.opened_mixers = {}
-        self.opened_viewers = {}
-        self.refresh_mixture_list()
 
         self.close_dialog = None
     
